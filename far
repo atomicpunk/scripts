@@ -1,0 +1,12 @@
+#!/bin/sh 
+# Author Todd Brandt <todd.e.brandt@intel.com>
+
+if [ $# -lt 2 ]
+then echo USAGE: far \<find string\> \<replace string\>; exit
+fi
+
+for file in `grep -rl $1 * | grep -v CVS` 
+do 
+echo "Processing $file"
+cat "$file" | sed -e "s/$1/$2/" > /tmp/tmpfile && cat /tmp/tmpfile > "$file"
+done 

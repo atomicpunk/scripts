@@ -1,0 +1,10 @@
+#!/bin/sh 
+# Author Todd Brandt <todd.e.brandt@intel.com>
+
+if [ $# -lt 3 ]
+then echo USAGE: far \<filename\> \<find string\> \<replace string\>; exit
+fi
+
+echo "Processing $1"
+cp "$1" /tmp/recovery
+cat "$1" | sed -e "s/$2/$3/" > /tmp/tmpfile && cat /tmp/tmpfile > "$1"

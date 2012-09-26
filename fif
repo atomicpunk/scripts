@@ -1,0 +1,79 @@
+#!/bin/bash
+# Author: Joe Grossberg
+# Author's Site: http://www.joegrossberg.com/archives/000386.html
+# Contributer Todd Brandt <todd.e.brandt@intel.com>
+ 
+if [ "$1" = "--help" ]; then
+	echo "";
+        echo "Usage: fif <string> <directory or option>";
+        echo "Recursively searches all files in <directory> for <string>";
+	echo "";
+	echo "<option> = (nil): get list of files/lines containing <string>";
+	echo "<option> = -1: get list of files containing <string>";
+	echo "<option> = -w: get list of files/lines containing <string> (whole word)";
+	echo "<option> = -1w: get list of files containing <string> (whole word)";
+	echo "<option> = -f: get list of files/lines using <string> as pattern file";
+	echo "<option> = -f1: get list of files using <string> as pattern file";
+	echo "<option> = -fw: get list of files/lines using <string> as pattern file (whole word)";
+	echo "<option> = -f1w: get list of files using <string> as pattern file (whole word)";
+	echo "";
+ 
+else # run the command
+ 
+    if [ "$2" = "" ]; then
+        directory=(".");
+    else
+        directory=$2;
+    fi
+ 
+    if [ "$2" = "-f1" ]; then
+
+        pushd "." > /dev/null;
+        fgrep -rl --file="$1" *;
+
+    elif [ "$2" = "-fw" ]; then
+
+        pushd "." > /dev/null;
+        fgrep -wrn --file="$1" * | colorGrepOutput.pl;
+
+    elif [ "$2" = "-f1w" ]; then
+
+        pushd "." > /dev/null;
+        fgrep -wrl --file="$1" *;
+
+    elif [ "$2" = "-f" ]; then
+
+        pushd "." > /dev/null;
+        fgrep -rn --file="$1" * | colorGrepOutput.pl;
+
+    elif [ "$2" = "-1" ]; then
+
+        pushd "." > /dev/null;
+        egrep -rl "$1" *;
+
+    elif [ "$2" = "-w" ]; then
+
+        pushd "." > /dev/null;
+        egrep -wrn "$1" * | colorGrepOutput.pl;
+
+    elif [ "$2" = "-1w" ]; then
+
+        pushd "." > /dev/null;
+        egrep -wrl "$1" *;
+
+    elif [ "$2" = "-p" ]; then
+
+        pushd "." > /dev/null;
+        egrep -srn "$1" *;
+
+    else
+
+        pushd $directory > /dev/null;
+        egrep -srn "$1" * | colorGrepOutput.pl;
+
+    fi
+
+    popd > /dev/null;
+ 
+fi
+
