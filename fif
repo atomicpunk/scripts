@@ -2,8 +2,8 @@
 # Author: Joe Grossberg
 # Author's Site: http://www.joegrossberg.com/archives/000386.html
 # Contributer Todd Brandt <todd.e.brandt@intel.com>
- 
-if [ "$1" = "--help" ]; then
+
+if [ $# -lt 1 -o "$1" = "--help" ]; then
 	echo "";
         echo "Usage: fif <string> <directory or option>";
         echo "Recursively searches all files in <directory> for <string>";
