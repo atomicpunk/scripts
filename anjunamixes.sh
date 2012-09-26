@@ -50,10 +50,11 @@ do
     if [ -z "$SSIZE" ]; then
         echo -n "$FILE not on server       \r"
     else
+        LSIZE=0
         if [ -f $LFILE ]; then
             LSIZE=`ls -l $LFILE | awk '{print $5}'`
         fi
-        if [ ! -f $LFILE -o $WSIZE -gt $LSIZE ]; then
+        if [ $SSIZE -gt $LSIZE ]; then
             echo "DOWNLOADING $FILE..."
             wget $SERVER/$FILE -O $BASE/$FILE
         else
