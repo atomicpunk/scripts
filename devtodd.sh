@@ -23,6 +23,20 @@
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+MON="left"
+if [ $# -gt 1 ]; then
+    echo "USAGE: $0 \<left/right\>"
+    exit
+elif [ $# -eq 1 ]; then
+    BASE=$1
+    if [ "$1" = "left" -o "$1" = "right" ]; then
+        MON=$1
+    else
+        echo "ERROR: left or right please"
+        exit
+    fi
+fi
+
 VALS=`xrandr | grep "connected.*mm" | sed -e "s/ (.*//;s/.* connected //;s/[x+]/\n/g"`
 NUM=`echo $VALS | wc -w`
 
@@ -74,16 +88,29 @@ do
     i=`expr $i + 1`
 done
 
-echo "Screen Resolution $MON1W x $MON1H"
+if [ $MON = "left" ]; then
+    H=$MON1H
+    W=$MON1W
+    X=$MON1X
+    Y=$MON1Y
+else
+    H=$MON2H
+    W=$MON2W
+    X=$MON2X
+    Y=$MON2Y
+fi
 
-TERMH=`expr $MON1H / 18`
-TERMW=`expr $MON1W / 24`
-TERM1X=`expr 0`
-TERM2X=`expr $MON1W / 3 - 50`
-TERM3X=`expr 2 \* $MON1W / 3 - 50`
+echo "Screen Resolution $W x $H"
 
-echo "Terminal Dimensions $TERMW"x"$TERMH"
+TH=`expr $H / 18`
+TW=`expr $W / 24`
+T1X=`expr $X`
+T2X=`expr $W / 3 - 50 + $X`
+T3X=`expr 2 \* $W / 3 - 50 + $X`
+TY=$Y
 
-gnome-terminal --geometry="$TERMW"x"$TERMH"+"$TERM1X"+"0"
-gnome-terminal --geometry="$TERMW"x"$TERMH"+"$TERM2X"+"0"
-gnome-terminal --geometry="$TERMW"x"$TERMH"+"$TERM3X"+"0"
+echo "Terminal Dimensions $TW"x"$TH"
+
+gnome-terminal --geometry="$TW"x"$TH"+"$T1X"+"$TY"
+gnome-terminal --geometry="$TW"x"$TH"+"$T2X"+"$TY"
+gnome-terminal --geometry="$TW"x"$TH"+"$T3X"+"$TY"
