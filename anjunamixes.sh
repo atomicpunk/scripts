@@ -31,13 +31,14 @@ if [ $# -gt 1 ]; then
     exit
 elif [ $# -eq 1 ]; then
     BASE=$1
-    if [ ! -d "$BASE" ]; then
-        echo "ERROR: $BASE is not a valid directory"
-        exit
-    elif [ ! -w "$BASE" -o ! -x "$BASE" ]; then
-        echo "ERROR: $BASE is not writable by this user"
-        exit
-    fi
+fi
+
+if [ ! -d "$BASE" ]; then
+    echo "ERROR: $BASE is not a valid directory"
+    exit
+elif [ ! -w "$BASE" -o ! -x "$BASE" ]; then
+    echo "ERROR: $BASE is not writable by this user"
+    exit
 fi
 
 echo "Synchronizing anjunamixes:"
