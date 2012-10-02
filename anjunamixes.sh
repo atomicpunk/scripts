@@ -41,7 +41,7 @@ elif [ $# -eq 1 ]; then
 fi
 
 echo "Synchronizing anjunamixes:"
-i=`expr 400`
+i=`expr 500`
 while [ $i -gt 0 ]
 do
     FILE="TATW$i.mp3"
