@@ -24,15 +24,22 @@
 #
 
 POS="left"
-if [ $# -gt 1 ]; then
-    echo "USAGE: $0 \<left/middle/right\>"
+TERMS=3
+
+if [ $# -eq 1 -o $# -gt 2 ]; then
+    echo "USAGE: $0 \<1/2/3\> \<left/middle/right\>"
     exit
-elif [ $# -eq 1 ]; then
-    BASE=$1
-    if [ "$1" = "left" -o "$1" = "middle" -o "$1" = "right" ]; then
-        POS=$1
+elif [ $# -eq 2 ]; then
+    if [ "$2" = "left" -o "$2" = "middle" -o "$2" = "right" ]; then
+        POS=$2
     else
-        echo "ERROR: left, middle, or right please"
+        echo "ERROR: left, middle, or right position please"
+        exit
+    fi
+    if [ $1 -eq 1 -o $1 -eq 2 -o $1 -eq 3 ]; then
+        TERMS=$1
+    else
+        echo "ERROR: 1, 2, or 3 terms please"
         exit
     fi
 fi
@@ -75,14 +82,29 @@ fi
 echo "Display: X=$X Y=$Y $W x $H"
 
 TH=`expr $H / 18`
-TW=`expr $W / 24`
-T1X=`expr $X`
-T2X=`expr $W / 3 - 50 + $X`
-T3X=`expr 2 \* $W / 3 - 50 + $X`
-TY=$Y
+TW=`expr $W / 9 / $TERMS`
+if [ $TERMS -eq 3 ]; then
+    TW=`expr $W / 24`
+fi
 
 echo "Terminal Dimensions $TW"x"$TH"
 
-gnome-terminal --geometry="$TW"x"$TH"+"$T1X"+"$TY"
-gnome-terminal --geometry="$TW"x"$TH"+"$T2X"+"$TY"
-gnome-terminal --geometry="$TW"x"$TH"+"$T3X"+"$TY"
+TY=$Y
+T1X=`expr $X`
+
+if [ $TERMS -lt 3 ]; then
+    T2X=`expr $W / 2 + $X`
+else
+    T2X=`expr $W / 3 - 50 + $X`
+    T3X=`expr 2 \* $W / 3 - 50 + $X`
+fi
+
+if [ $TERMS -gt 0 ]; then
+    gnome-terminal --geometry="$TW"x"$TH"+"$T1X"+"$TY"
+fi
+if [ $TERMS -gt 1 ]; then
+    gnome-terminal --geometry="$TW"x"$TH"+"$T2X"+"$TY"
+fi
+if [ $TERMS -gt 2 ]; then
+    gnome-terminal --geometry="$TW"x"$TH"+"$T3X"+"$TY"
+fi
