@@ -23,84 +23,56 @@
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-MON="left"
+POS="left"
 if [ $# -gt 1 ]; then
-    echo "USAGE: $0 \<left/right\>"
+    echo "USAGE: $0 \<left/middle/right\>"
     exit
 elif [ $# -eq 1 ]; then
     BASE=$1
-    if [ "$1" = "left" -o "$1" = "right" ]; then
-        MON=$1
+    if [ "$1" = "left" -o "$1" = "middle" -o "$1" = "right" ]; then
+        POS=$1
     else
-        echo "ERROR: left or right please"
+        echo "ERROR: left, middle, or right please"
         exit
     fi
 fi
 
-VALS=`xrandr | grep "connected.*mm" | sed -e "s/ (.*//;s/.* connected //;s/[x+]/\n/g"`
+VALS=`xrandr | grep "connected.*mm" | sed -e "s/ (.*//;s/.* connected //;s/[x+]/ /g" | awk '{print $3,$4,$1,$2}' | sort | tr '\n' ' '`
 NUM=`echo $VALS | wc -w`
-
-if [ "$NUM" != "8" -a "$NUM" != "4" ]; then
+if [ $NUM -ne 12 -a $NUM -ne 8 -a $NUM -ne 4 ]; then
     echo "ERROR: xrandr output not understood"
     exit
 fi
 
-CHECK=`echo $VALS | sed -e "s/.* 0 0 //" | wc -w`
-if [ "$CHECK" = "4" ]; then
-    m1s=`expr 0`
-    m1f=`expr 3`
-    m2s=`expr 4`
-    m2f=`expr 7`
-elif [ "$CHECK" = "0" ]; then
-    m1s=`expr 4`
-    m1f=`expr 7`
-    m2s=`expr 0`
-    m2f=`expr 3`
+X=`echo $VALS | awk '{print $1}'`
+Y=`echo $VALS | awk '{print $2}'`
+W=`echo $VALS | awk '{print $3}'`
+H=`echo $VALS | awk '{print $4}'`
+
+if [ $NUM -eq 8 ]; then
+    if [ "$POS" = "right" ]; then
+        X=`echo $VALS | awk '{print $5}'`
+        Y=`echo $VALS | awk '{print $6}'`
+        W=`echo $VALS | awk '{print $7}'`
+        H=`echo $VALS | awk '{print $8}'`
+    fi
 fi
 
-i=`expr 0`
-for val in $VALS
-do
-    if [ $i -ge $m1s -a $i -le $m1f ]; then
-        j=`expr $i - $m1s`
-        if [ $j -eq 0 ]; then
-            MON1W=$val
-        elif [ $j -eq 1 ]; then
-            MON1H=$val
-        elif [ $j -eq 2 ]; then
-            MON1X=$val
-        elif [ $j -eq 3 ]; then
-            MON1Y=$val
-        fi
+if [ $NUM -eq 12 ]; then
+    if [ "$POS" = "middle" ]; then
+        X=`echo $VALS | awk '{print $5}'`
+        Y=`echo $VALS | awk '{print $6}'`
+        W=`echo $VALS | awk '{print $7}'`
+        H=`echo $VALS | awk '{print $8}'`
+    elif [ "$POS" = "right" ]; then
+        X=`echo $VALS | awk '{print $9}'`
+        Y=`echo $VALS | awk '{print $10}'`
+        W=`echo $VALS | awk '{print $11}'`
+        H=`echo $VALS | awk '{print $12}'`
     fi
-    if [ $i -ge $m2s -a $i -le $m2f ]; then
-        j=`expr $i - $m2s`
-        if [ $j -eq 0 ]; then
-            MON2W=$val
-        elif [ $j -eq 1 ]; then
-            MON2H=$val
-        elif [ $j -eq 2 ]; then
-            MON2X=$val
-        elif [ $j -eq 3 ]; then
-            MON2Y=$val
-        fi
-    fi
-    i=`expr $i + 1`
-done
-
-if [ $MON = "left" ]; then
-    H=$MON1H
-    W=$MON1W
-    X=$MON1X
-    Y=$MON1Y
-else
-    H=$MON2H
-    W=$MON2W
-    X=$MON2X
-    Y=$MON2Y
 fi
 
-echo "Screen Resolution $W x $H"
+echo "Display: X=$X Y=$Y $W x $H"
 
 TH=`expr $H / 18`
 TW=`expr $W / 24`
