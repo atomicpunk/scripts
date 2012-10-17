@@ -1,7 +1,7 @@
 #!/bin/bash
 # Author: Joe Grossberg
 # Author's Site: http://www.joegrossberg.com/archives/000386.html
-# Contributer Todd Brandt <todd.e.brandt@intel.com>
+# Contributer Todd Brandt <tebrandt@frontier.com>
 
 if [ $# -lt 1 -o "$1" = "--help" ]; then
 	echo "";

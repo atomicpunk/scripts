@@ -23,17 +23,58 @@
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-POS="left"
+POS="all"
 TERMS=3
 
-if [ $# -eq 1 -o $# -gt 2 ]; then
-    echo "USAGE: $0 \<1/2/3\> \<left/middle/right\>"
+getDisplayCount() {
+    C=`xrandr | grep "connected.*mm" | sed -e "s/ (.*//;s/.* connected //;s/[x+]/ /g" | awk '{print $3,$4,$1,$2}' | sort | wc -l`
+    return $C
+}
+
+getDisplay() {
+    P=$1
+    VALS=`xrandr | grep "connected.*mm" | sed -e "s/ (.*//;s/.* connected //;s/[x+]/ /g" | awk '{print $3,$4,$1,$2}' | sort | head -n$P | tail -n1`
+    echo $VALS
+    X=`echo $VALS | awk '{print $1}'`
+    Y=`echo $VALS | awk '{print $2}'`
+    W=`echo $VALS | awk '{print $3}'`
+    H=`echo $VALS | awk '{print $4}'`
+}
+
+setupDisplay() {
+    TH=`expr $H / 18`
+    TW=`expr $W / 9 / $TERMS`
+    if [ $TERMS -eq 3 ]; then
+        TW=`expr $W / 24`
+    fi
+    TY=$Y
+    T1X=`expr $X`
+    if [ $TERMS -lt 3 ]; then
+        T2X=`expr $W / 2 + $X`
+    else
+        T2X=`expr $W / 3 - 50 + $X`
+        T3X=`expr 2 \* $W / 3 - 50 + $X`
+    fi
+
+    if [ $TERMS -gt 0 ]; then
+        gnome-terminal --geometry="$TW"x"$TH"+"$T1X"+"$TY" &
+    fi
+    if [ $TERMS -gt 1 ]; then
+        gnome-terminal --geometry="$TW"x"$TH"+"$T2X"+"$TY" &
+    fi
+    if [ $TERMS -gt 2 ]; then
+        gnome-terminal --geometry="$TW"x"$TH"+"$T3X"+"$TY" &
+    fi
+}
+
+if [ $# -eq 0 -o $# -gt 2 ]; then
+    echo "USAGE: $0 \<1/2/3\> \<left/middle/right/all\>"
     exit
 elif [ $# -eq 2 ]; then
-    if [ "$2" = "left" -o "$2" = "middle" -o "$2" = "right" ]; then
+    if [ "$2" = "left" -o "$2" = "middle" -o "$2" = "right" -o "$2" = "all" ]; then
         POS=$2
     else
-        echo "ERROR: left, middle, or right position please"
+        echo "ERROR: left, middle, right, or all displays please"
         exit
     fi
     if [ $1 -eq 1 -o $1 -eq 2 -o $1 -eq 3 ]; then
@@ -44,67 +85,20 @@ elif [ $# -eq 2 ]; then
     fi
 fi
 
-VALS=`xrandr | grep "connected.*mm" | sed -e "s/ (.*//;s/.* connected //;s/[x+]/ /g" | awk '{print $3,$4,$1,$2}' | sort | tr '\n' ' '`
-NUM=`echo $VALS | wc -w`
-if [ $NUM -ne 12 -a $NUM -ne 8 -a $NUM -ne 4 ]; then
-    echo "ERROR: xrandr output not understood"
-    exit
+getDisplayCount
+DISPLAYS=$?
+
+if [ "$POS" = "left" -o "$POS" = "all" ]; then
+    getDisplay 1
+    setupDisplay
 fi
-
-X=`echo $VALS | awk '{print $1}'`
-Y=`echo $VALS | awk '{print $2}'`
-W=`echo $VALS | awk '{print $3}'`
-H=`echo $VALS | awk '{print $4}'`
-
-if [ $NUM -eq 8 ]; then
-    if [ "$POS" = "right" ]; then
-        X=`echo $VALS | awk '{print $5}'`
-        Y=`echo $VALS | awk '{print $6}'`
-        W=`echo $VALS | awk '{print $7}'`
-        H=`echo $VALS | awk '{print $8}'`
+if [ "$POS" = "right" -o "$POS" = "all" ]; then
+    getDisplay $DISPLAYS
+    setupDisplay
+fi
+if [ $DISPLAYS -gt 2 ]; then
+    if [ "$POS" = "middle" -o "$POS" = "all" ]; then
+        getDisplay 2
+        setupDisplay
     fi
-fi
-
-if [ $NUM -eq 12 ]; then
-    if [ "$POS" = "middle" ]; then
-        X=`echo $VALS | awk '{print $5}'`
-        Y=`echo $VALS | awk '{print $6}'`
-        W=`echo $VALS | awk '{print $7}'`
-        H=`echo $VALS | awk '{print $8}'`
-    elif [ "$POS" = "right" ]; then
-        X=`echo $VALS | awk '{print $9}'`
-        Y=`echo $VALS | awk '{print $10}'`
-        W=`echo $VALS | awk '{print $11}'`
-        H=`echo $VALS | awk '{print $12}'`
-    fi
-fi
-
-echo "Display: X=$X Y=$Y $W x $H"
-
-TH=`expr $H / 18`
-TW=`expr $W / 9 / $TERMS`
-if [ $TERMS -eq 3 ]; then
-    TW=`expr $W / 24`
-fi
-
-echo "Terminal Dimensions $TW"x"$TH"
-
-TY=$Y
-T1X=`expr $X`
-
-if [ $TERMS -lt 3 ]; then
-    T2X=`expr $W / 2 + $X`
-else
-    T2X=`expr $W / 3 - 50 + $X`
-    T3X=`expr 2 \* $W / 3 - 50 + $X`
-fi
-
-if [ $TERMS -gt 0 ]; then
-    gnome-terminal --geometry="$TW"x"$TH"+"$T1X"+"$TY"
-fi
-if [ $TERMS -gt 1 ]; then
-    gnome-terminal --geometry="$TW"x"$TH"+"$T2X"+"$TY"
-fi
-if [ $TERMS -gt 2 ]; then
-    gnome-terminal --geometry="$TW"x"$TH"+"$T3X"+"$TY"
 fi
