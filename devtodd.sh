@@ -24,7 +24,6 @@
 #
 
 POS="all"
-TERMS=3
 
 getDisplayCount() {
     C=`xrandr | grep "connected.*mm" | sed -e "s/ (.*//;s/.* connected //;s/[x+]/ /g" | awk '{print $3,$4,$1,$2}' | sort | wc -l`
@@ -42,31 +41,33 @@ getDisplay() {
 }
 
 setupDisplay() {
+    NUM=$1
     TH=`expr $H / 18`
-    TW=`expr $W / 9 / $TERMS`
-    if [ $TERMS -eq 3 ]; then
+    TW=`expr $W / 9 / $NUM`
+    if [ $NUM -eq 3 ]; then
         TW=`expr $W / 24`
     fi
     TY=$Y
     T1X=`expr $X`
-    if [ $TERMS -lt 3 ]; then
+    if [ $NUM -lt 3 ]; then
         T2X=`expr $W / 2 + $X`
     else
         T2X=`expr $W / 3 - 50 + $X`
         T3X=`expr 2 \* $W / 3 - 50 + $X`
     fi
 
-    if [ $TERMS -gt 0 ]; then
+    if [ $NUM -gt 0 ]; then
         gnome-terminal --geometry="$TW"x"$TH"+"$T1X"+"$TY" &
     fi
-    if [ $TERMS -gt 1 ]; then
+    if [ $NUM -gt 1 ]; then
         gnome-terminal --geometry="$TW"x"$TH"+"$T2X"+"$TY" &
     fi
-    if [ $TERMS -gt 2 ]; then
+    if [ $NUM -gt 2 ]; then
         gnome-terminal --geometry="$TW"x"$TH"+"$T3X"+"$TY" &
     fi
 }
 
+TERMS=3
 if [ $# -eq 0 -o $# -gt 2 ]; then
     echo "USAGE: $0 \<1/2/3\> \<left/middle/right/all\>"
     exit
@@ -90,15 +91,15 @@ DISPLAYS=$?
 
 if [ "$POS" = "left" -o "$POS" = "all" ]; then
     getDisplay 1
-    setupDisplay
+    setupDisplay $TERMS
 fi
 if [ "$POS" = "right" -o "$POS" = "all" ]; then
     getDisplay $DISPLAYS
-    setupDisplay
+    setupDisplay $TERMS
 fi
 if [ $DISPLAYS -gt 2 ]; then
     if [ "$POS" = "middle" -o "$POS" = "all" ]; then
         getDisplay 2
-        setupDisplay
+        setupDisplay $TERMS
     fi
 fi

@@ -31,10 +31,10 @@ import re
 import psutil
 videogoodexts = [".*\.avi$", ".*\.mpg$", ".*\.mkv$", ".*\.mp4$", 
                  ".*\.srt$", ".*\.sub$", ".*\.sfv$", ".*\.divx$",
-                 ".*\.iso$", ".*\.m2ts$"];
+                 ".*\.iso$", ".*\.m2ts$", ".*\.m4v$"];
 videobadexts = [".*\.torrent$", ".*\.rar$", ".*\.png$", ".*\.idx$", ".*\.txt$", ".*\.nfo$", ".*\.index$",
                 ".*\.db$", ".*\.cc$", ".*\.par2$", ".*\.lnk$", ".*\.gif$", ".*\.rtf$", ".*\.ini$", ".*\.gif$",
-                ".*\.smi$", 
+                ".*\.smi$", ".*\.pdf$", 
                 ".*\.rtf$", ".*\.url$", ".*\.jpeg$", ".*\.hlp$", ".*\.ico$", ".*\.md5$", ".*\.r[0-9][0-9]$",
                 ".*\.jpg$", ".*sample.avi$", ".*sample.mpg$", ".*sample.mkv$", ".*sample.mp4$"];
 
