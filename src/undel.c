@@ -32,10 +32,12 @@ int main(int argc, char* argv[])
     FILE *fp = NULL;
     char *device = NULL;
     unsigned char buf[BLOCKSIZE*2];
+    char synopsis[101];
     char **tgt = NULL;
     long int offset = 0;
     int i, j, tgtcnt = 0;
 
+    memset(synopsis, 0, 101);
     if(argc < 4)
     {
         printf("USAGE: device offset searchstr1 searchstr2 ...\n");
@@ -64,7 +66,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    printf("Searching %s for:\n", device);
+    printf("Searching %s at offset %ld for:\n", device, offset);
     for(i = 0; i < tgtcnt; i++)
         printf("    \"%s\"\n", tgt[i]);
     printf("\n");
@@ -79,7 +81,9 @@ int main(int argc, char* argv[])
             {
                 if(strncmp(s, tgt[j], strlen(tgt[j])) == 0)
                 {
-                    printf("%12ld: \"%s\"\n", offset+i, tgt[j]);
+                    printf("FOUND AT %12ld: \"%s\"\n\n", offset+i, tgt[j]);
+                    memcpy(synopsis, s, 100);
+                    printf("%s\n\n", synopsis);
                 }
             }
         }
