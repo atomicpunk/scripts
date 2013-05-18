@@ -9,25 +9,27 @@ int main(int argc, char* argv[])
     FILE *fp = NULL;
     char *device = NULL;
     unsigned char buf[BLOCKSIZE*2];
-    char *tgt = NULL;
+    char **tgt = NULL;
     long int offset = 0;
-    int i = 0;
+    int i, j, tgtcnt = 0;
 
-    if(argc < 3)
+    if(argc < 4)
     {
-        printf("USAGE: device searchstring <offset>\n");
+        printf("USAGE: device offset searchstr1 searchstr2 ...\n");
         return 0;
     }
     device = argv[1];
-    tgt = argv[2];
-    if(argc > 3)
+    if(sscanf(argv[2], "%ld", &offset) != 1)
     {
-        if(sscanf(argv[3], "%ld", &offset) != 1)
-        {
-            fprintf(stderr, "Invalid filestart: %s\n", argv[3]);
-            return -1;
-        }
+        fprintf(stderr, "Invalid filestart: %s\n", argv[2]);
+        return -1;
     }
+
+    tgtcnt = argc - 3;
+    tgt = (char **)calloc(tgtcnt, sizeof(char *));
+    for(i = 0; i < tgtcnt; i++)
+        tgt[i] = argv[i+3];
+
     if((fp = fopen(device, "rb")) == NULL)
     {
         fprintf(stderr, "Invalid device: %s\n", device);
@@ -39,17 +41,23 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    printf("Searching %s for [%s]...\n", device, tgt);
+    printf("Searching %s for:\n", device);
+    for(i = 0; i < tgtcnt; i++)
+        printf("    \"%s\"\n", tgt[i]);
+    printf("\n");
 
     fread(buf, 1, BLOCKSIZE, fp);
-    while(fread(&buf[BLOCKSIZE], 1, BLOCKSIZE, fp))
+    while(fread(&buf[BLOCKSIZE], 1, BLOCKSIZE, fp) > 0)
     {
         for(i = 0; i < BLOCKSIZE; i++)
         {
             char *s = &buf[i];
-            if(strncmp(s, tgt, strlen(tgt)) == 0)
+            for(j = 0; j < tgtcnt; j++)
             {
-                printf("FOUND %s at %ld\n", tgt, offset+i);
+                if(strncmp(s, tgt[j], strlen(tgt[j])) == 0)
+                {
+                    printf("%12ld: \"%s\"\n", offset+i, tgt[j]);
+                }
             }
         }
         memmove(buf, &buf[BLOCKSIZE], BLOCKSIZE);
