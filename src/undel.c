@@ -6,11 +6,28 @@
 
 int main(int argc, char* argv[])
 {
-    FILE *fp = fopen("/dev/sdb1", "rb");
+    FILE *fp = NULL;
+    char *device = NULL;
     unsigned char buf[BLOCKSIZE*2];
-    char tgt[1000] = "<title>Brandt Family Archives</title>";
+    char *tgt = NULL;
     long int offset = 0;
     int i = 0;
+
+    if(argc != 3)
+    {
+        printf("USAGE: device searchstring\n");
+        return 0;
+    }
+    device = argv[1];
+    tgt = argv[2];
+
+    if((fp = fopen(device, "rb")) == NULL)
+    {
+        fprintf(stderr, "Invalid device: %s\n", device);
+        return -1;
+    }
+
+    printf("Searching %s for [%s]...\n", device, tgt);
 
     fread(buf, 1, BLOCKSIZE, fp);
     while(fread(&buf[BLOCKSIZE], 1, BLOCKSIZE, fp))
