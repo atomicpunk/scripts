@@ -13,17 +13,29 @@ int main(int argc, char* argv[])
     long int offset = 0;
     int i = 0;
 
-    if(argc != 3)
+    if(argc < 3)
     {
-        printf("USAGE: device searchstring\n");
+        printf("USAGE: device searchstring <offset>\n");
         return 0;
     }
     device = argv[1];
     tgt = argv[2];
-
+    if(argc > 3)
+    {
+        if(sscanf(argv[3], "%ld", &offset) != 1)
+        {
+            fprintf(stderr, "Invalid filestart: %s\n", argv[3]);
+            return -1;
+        }
+    }
     if((fp = fopen(device, "rb")) == NULL)
     {
         fprintf(stderr, "Invalid device: %s\n", device);
+        return -1;
+    }
+    if(fseek(fp, offset, SEEK_SET) != 0)
+    {
+        fprintf(stderr, "Failed to reach offset\n", device);
         return -1;
     }
 
@@ -43,6 +55,7 @@ int main(int argc, char* argv[])
         memmove(buf, &buf[BLOCKSIZE], BLOCKSIZE);
         offset += BLOCKSIZE;
     }
+
     fclose(fp);
     return 0;
 }
