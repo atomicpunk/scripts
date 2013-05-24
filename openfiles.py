@@ -38,7 +38,7 @@ def filesInUse(dirname, filesinuse):
             if flist:
                 for nt in flist:
                     if(string.find(nt.path, dirname) == 0):
-                        fstring = proc.name+": "+nt.path
+                        fstring = proc.name+": "+nt.path[len(dirname):]
                         filesinuse.append(fstring)
         except psutil.NoSuchProcess as err:
             print("****",err)
@@ -48,11 +48,11 @@ if(len(sys.argv) != 2):
     sys.exit();
 
 p_inuse = []
-c_inuse = []
 while(1):
+    c_inuse = []
     filesInUse(sys.argv[1], c_inuse)
     for file in c_inuse:
         if file not in p_inuse:
-            p_inuse.append(file)
             print(file)
-    time.sleep(1)
+    p_inuse = c_inuse
+    time.sleep(0.2)
