@@ -32,11 +32,11 @@ import psutil
 videogoodexts = [".*\.avi$", ".*\.mpg$", ".*\.mkv$", ".*\.mp4$", 
                  ".*\.srt$", ".*\.sub$", ".*\.sfv$", ".*\.divx$",
                  ".*\.asf$", ".*\.rm$", ".*\.mov$", ".*\.vob$",
-                 ".*\.3gp$", ".*\.qt$",
-                 ".*\.iso$", ".*\.m2ts$", ".*\.m4v$", ".*\.mpeg$"];
+                 ".*\.3gp$", ".*\.qt$", ".*\.m2ts$", ".*\.m4v$", 
+                 ".*\.mpeg$"];
 videobadexts = [".*\.torrent$", ".*\.rar$", ".*\.png$", ".*\.idx$", ".*\.txt$", ".*\.nfo$", ".*\.index$",
                 ".*\.db$", ".*\.cc$", ".*\.par2$", ".*\.lnk$", ".*\.gif$", ".*\.rtf$", ".*\.ini$", ".*\.gif$",
-                ".*\.smi$", ".*\.pdf$", ".*\.mp3$",
+                ".*\.smi$", ".*\.pdf$", ".*\.mp3$", ".*\.iso$", 
                 ".*\.rtf$", ".*\.url$", ".*\.jpeg$", ".*\.hlp$", ".*\.ico$", ".*\.md5$", ".*\.r[0-9][0-9]$",
                 ".*\.jpg$", ".*sample.avi$", ".*sample.mpg$", ".*sample.mkv$", ".*sample.mp4$"];
 
