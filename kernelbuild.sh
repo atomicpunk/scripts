@@ -3,10 +3,27 @@
 SERVER=""
 REBOOT="no"
 KBUILD="ubuntu-raring"
-KVER="3.8"
+#OPATH="/ramdisk/"
+#BPATH="/ramdisk/$KBUILD"
 OPATH="/home/tebrandt/workspace/"
 BPATH="/home/tebrandt/workspace/$KBUILD"
+KVER=`cat $BPATH/debian/control | grep "Package: linux-image" | head -1 | sed "s/Package: linux-image-//;s/-generic//"`
+BVER=`head -1 debian/changelog | sed "s/.*(//;s/).*//"`
 ARCH="amd64"
+HEADPKG="linux-headers-${KVER}_${BVER}_all.deb"
+HEADGENPKG="linux-headers-${KVER}-generic_${BVER}_${ARCH}.deb"
+IMAGEPKG="linux-image-${KVER}-generic_${BVER}_${ARCH}.deb"
+EXTRAPKG="linux-image-extra-${KVER}-generic_${BVER}_${ARCH}.deb"
+
+if [ -z "$KVER" ]; then
+    echo "Couldn't find the kernel version"
+    exit
+fi
+
+if [ -z "$BVER" ]; then
+    echo "Couldn't find the build version"
+    exit
+fi
 
 if [ $# -gt 3 ]; then
     echo "USAGE: kernelbuild.sh <arch> <machine> <reboot>"
@@ -39,21 +56,38 @@ rm -f $OPATH/linux-*${KVER}*_${ARCH}.deb
 cd $BPATH
 fakeroot debian/rules clean
 CONCURRENCY_LEVEL=12 DEB_HOST_ARCH=${ARCH} AUTOBUILD=1 NOEXTRAS=1 fakeroot debian/rules binary-headers binary-generic
+
+# check on the output files
 cd $OPATH
+if [ ! -e $HEADPKG ]; then
+    echo "Missing package: $HEADPKG"
+    exit
+fi
+if [ ! -e $HEADGENPKG ]; then
+    echo "Missing package: $HEADPKG"
+    exit
+fi
+if [ ! -e $IMAGEPKG ]; then
+    echo "Missing package: $HEADPKG"
+    exit
+fi
+if [ ! -e $EXTRAPKG ]; then
+    echo "Missing package: $HEADPKG"
+    exit
+fi
+
 if [ -n "$SERVER" ]; then
     if [ $SERVER = "local" ]; then
         echo "INSTALLING LOCALLY"
-        PKGS=`ls -1 linux-*${KVER}*_${ARCH}.deb | head -2 | tr '\n' ' '`
-        sudo dpkg -i $PKGS
+        sudo dpkg -i $HEADPKG $HEADGENPKG $IMAGEPKG $EXTRAPKG
         if [ "$REBOOT" = "yes" ]; then
             echo "REBOOTING $SERVER"
             sudo reboot
         fi
     else
         echo "INSTALLING ON $SERVER"
-        PKGS=`ls -1 linux-*${KVER}*_${ARCH}.deb | head -2 | tr '\n' ' '`
-        scp $PKGS ${SERVER}:/home/tebrandt/Downloads/
-        ssh -X root@$SERVER "cd /home/tebrandt/Downloads; dpkg -i $PKGS"
+        scp $HEADPKG $HEADGENPKG $IMAGEPKG $EXTRAPKG ${SERVER}:/home/tebrandt/Downloads/
+        ssh -X root@$SERVER "cd /home/tebrandt/Downloads; dpkg -i $HEADPKG $HEADGENPKG $IMAGEPKG $EXTRAPKG"
         if [ "$REBOOT" = "yes" ]; then
             echo "REBOOTING $SERVER"
             ssh -X root@$SERVER "reboot"
@@ -63,3 +97,4 @@ else
     echo "BUILD COMPLETE"
     ls -1 $OPATH/linux-*${KVER}*_${ARCH}.deb
 fi
+date
