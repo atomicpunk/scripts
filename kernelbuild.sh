@@ -9,7 +9,7 @@ OPATH="/home/tebrandt/workspace/"
 BPATH="/home/tebrandt/workspace/$KBUILD"
 LOG="$OPATH/build.log"
 KVER=`cat $BPATH/debian/control | grep "Package: linux-image" | head -1 | sed "s/Package: linux-image-//;s/-generic//"`
-BVER=`head -1 debian/changelog | sed "s/.*(//;s/).*//"`
+BVER=`head -1 $BPATH/debian/changelog | sed "s/.*(//;s/).*//"`
 ARCH="amd64"
 HEADPKG="linux-headers-${KVER}_${BVER}_all.deb"
 HEADGENPKG="linux-headers-${KVER}-generic_${BVER}_${ARCH}.deb"
@@ -58,25 +58,30 @@ cd $BPATH
 fakeroot debian/rules clean
 echo "Beginning build" > $LOG
 tail -f $LOG &
+LOGPID=$!
+leave() {
+    kill $LOGPID
+    exit
+}
 CONCURRENCY_LEVEL=12 DEB_HOST_ARCH=${ARCH} AUTOBUILD=1 NOEXTRAS=1 fakeroot debian/rules binary-headers binary-generic > $LOG 2>&1
 
 # check on the output files
 cd $OPATH
 if [ ! -e $HEADPKG ]; then
     echo "Missing package: $HEADPKG"
-    exit
+    leave
 fi
 if [ ! -e $HEADGENPKG ]; then
     echo "Missing package: $HEADPKG"
-    exit
+    leave
 fi
 if [ ! -e $IMAGEPKG ]; then
     echo "Missing package: $HEADPKG"
-    exit
+    leave
 fi
 if [ ! -e $EXTRAPKG ]; then
     echo "Missing package: $HEADPKG"
-    exit
+    leave
 fi
 
 if [ -n "$SERVER" ]; then
@@ -101,3 +106,4 @@ else
     ls -1 $OPATH/linux-*${KVER}*_${ARCH}.deb
 fi
 date
+leave
