@@ -7,6 +7,7 @@ KBUILD="ubuntu-raring"
 #BPATH="/ramdisk/$KBUILD"
 OPATH="/home/tebrandt/workspace/"
 BPATH="/home/tebrandt/workspace/$KBUILD"
+LOG="$OPATH/build.log"
 KVER=`cat $BPATH/debian/control | grep "Package: linux-image" | head -1 | sed "s/Package: linux-image-//;s/-generic//"`
 BVER=`head -1 debian/changelog | sed "s/.*(//;s/).*//"`
 ARCH="amd64"
@@ -55,7 +56,9 @@ echo "Bulding $KBUILD kernel v${KVER}..."
 rm -f $OPATH/linux-*${KVER}*_${ARCH}.deb
 cd $BPATH
 fakeroot debian/rules clean
-CONCURRENCY_LEVEL=12 DEB_HOST_ARCH=${ARCH} AUTOBUILD=1 NOEXTRAS=1 fakeroot debian/rules binary-headers binary-generic
+echo "Beginning build" > $LOG
+tail -f $LOG &
+CONCURRENCY_LEVEL=12 DEB_HOST_ARCH=${ARCH} AUTOBUILD=1 NOEXTRAS=1 fakeroot debian/rules binary-headers binary-generic > $LOG 2>&1
 
 # check on the output files
 cd $OPATH
