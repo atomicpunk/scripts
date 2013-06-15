@@ -64,9 +64,10 @@ checkTool() {
 }
 
 filesExist() {
-    FILES=`echo $1 | tr ',' '\n'`
-    for file in $FILES;
+    FILES=`echo $1 | tr ',' '\n' | tr ' ' '$'`
+    for tmpfile in $FILES;
     do
+        file=`echo $tmpfile | tr '$' ' '`
         if [ ! -e "$file" ]; then onError "$file doesn't exist"; fi
     done
     COUNT=`echo $1 | tr ',' '\n' | wc -l`
@@ -74,6 +75,10 @@ filesExist() {
         return 1
     fi
     return 0
+}
+
+fileExists() {
+    if [ ! -e "$1" ]; then onError "$1 doesn't exist"; fi
 }
 
 stampMetadata() {
@@ -124,34 +129,34 @@ while [ "$1" ] ; do
   case "$1" in
     -i)
       shift
-      if [ ! $1 ]; then onError "-i missing input video file"; fi
-      INFILE=$1
+      if [ ! "$1" ]; then onError "-i missing input video file"; fi
+      INFILE="$1"
       ;;
     -o)
       shift
-      if [ ! $1 ]; then onError "-o missing output video file"; fi
-      OUTFILE=$1
+      if [ ! "$1" ]; then onError "-o missing output video file"; fi
+      OUTFILE="$1"
       ;;
     -a)
       shift
-      if [ ! $1 ]; then onError "-a missing input audio file"; fi
-      AUDIOFILE=$1
-      filesExist $AUDIOFILE
+      if [ ! "$1" ]; then onError "-a missing input audio file"; fi
+      AUDIOFILE="$1"
+      filesExist "$AUDIOFILE"
       ;;
     -title)
       shift
-      if [ ! $1 ]; then onError "-title missing title string"; fi
-      TITLE=$1
+      if [ ! "$1" ]; then onError "-title missing title string"; fi
+      TITLE="$1"
       ;;
     -author)
       shift
-      if [ ! $1 ]; then onError "-author missing author string"; fi
-      AUTHOR=$1
+      if [ ! "$1" ]; then onError "-author missing author string"; fi
+      AUTHOR="$1"
       ;;
     -copyright)
       shift
-      if [ ! $1 ]; then onError "-copyright missing copyright string"; fi
-      COPYRIGHT=$1
+      if [ ! "$1" ]; then onError "-copyright missing copyright string"; fi
+      COPYRIGHT="$1"
       ;;
     -h)
       printHelp
@@ -167,7 +172,7 @@ if [ -z "$INFILE" ]; then
     printHelp
 fi
 
-filesExist $INFILE
+filesExist "$INFILE"
 ISLIST=$?
 if [ -z "$OUTFILE" ]; then
     if [ $ISLIST -eq 1 ]; then
@@ -180,23 +185,24 @@ fi
 
 if [ $ISLIST -eq 0 ]; then
     echo "Converting $INFILE to $OUTFILE ..."
-    convertFile $INFILE $OUTFILE
+    convertFile "$INFILE" "$OUTFILE"
     if [ -n "$AUDIOFILE" ]; then
-        addAudioTrack $OUTFILE $AUDIOFILE
+        addAudioTrack "$OUTFILE" "$AUDIOFILE"
     fi
 else
     CONFILES=""
-    for file in $FILES;
+    for tmpfile in $FILES;
     do
+        file=`echo $tmpfile | tr '$' ' '`
         BASENAME=`echo $file | sed "s/\..*//"`
         CONFILE="$BASENAME.mp4"
-        CONFILES="$CONFILES $CONFILE"
+        CONFILES="$CONFILES \"$CONFILE\""
         echo "Converting $file to $CONFILE ..."
-        convertFile $file $CONFILE
+        convertFile "$file" "$CONFILE"
     done
     echo "Combining $CONFILES into $OUTFILE ..."
     combineFiles "$OUTFILE $CONFILES"
     if [ -n "$AUDIOFILE" ]; then
-        addAudioTrack $OUTFILE $AUDIOFILE
+        addAudioTrack "$OUTFILE" "$AUDIOFILE"
     fi
 fi
