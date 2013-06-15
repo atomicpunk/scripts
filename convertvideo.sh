@@ -23,14 +23,17 @@
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+INFILE=""
+OUTFILE=""
+
 printHelp() {
     echo ""
     echo "USAGE: convertvideo.sh -i infile [-o outfile] [-c]"
     echo "  Arguments:"
-    echo "   -i infile  : input video file"
-    echo "   -o outfile : output video file (default: infile.mp4)"
-    echo "   -c         : perform color correction"
-    echo "   -h         : print this help text"
+    echo "   -i infile(s) : input video file, combines multiple files (file1,file2,...)"
+    echo "   -o outfile   : output video file (default: infile.mp4)"
+    echo "   -c           : perform color correction"
+    echo "   -h           : print this help text"
     echo ""
     exit
 }
@@ -41,13 +44,34 @@ onError() {
     printHelp
 }
 
-fileExists() {
-    if [ ! -e "$1" ]; then onError "$1 doesn't exist"; fi
+filesExist() {
+    FILES=`echo $1 | tr ',' '\n'`
+    for file in $FILES;
+    do
+        if [ ! -e "$file" ]; then onError "$file doesn't exist"; fi
+    done
+    COUNT=`echo $1 | tr ',' '\n' | wc -l`
+    if [ "$COUNT" != "1" ]; then
+        return 1
+    fi
+    return 0
 }
 
-INFILE=""
-OUTFILE=""
-COLOR=0
+convertFile() {
+mencoder -of lavf -lavfopts format=mp4 -oac lavc -ovc lavc -lavcopts aglobal=1:\
+vglobal=1:acodec=libfaac:vcodec=mpeg4:abitrate=96:vbitrate=1500:keyint=250:\
+mbd=1:vqmax=10:lmax=10:vpass=1:turbo -af lavcresample=44100 -vf harddup \
+"$1" -o "$2"
+}
+
+combineFiles() {
+    mencoder -oac copy -ovc copy -idx -o $1
+}
+
+CHECK=`which mencoder`
+if [ -z "$CHECK" ]; then
+    onError "mencoder is not installed\ntry 'sudo apt-get install mencoder'"
+fi
 
 while [ "$1" ] ; do
   case "$1" in
@@ -55,15 +79,11 @@ while [ "$1" ] ; do
       shift
       if [ ! $1 ]; then onError "-i missing infile"; fi
       INFILE=$1
-      fileExists $INFILE
       ;;
     -o)
       shift
       if [ ! $1 ]; then onError "-o missing outfile"; fi
       OUTFILE=$1
-      ;;
-    -c)
-      COLOR=1
       ;;
     -h)
       COLOR=1
@@ -72,22 +92,38 @@ while [ "$1" ] ; do
       onError "Unknown argument ($1)"
       ;;
   esac
-  shift;
-done;
+  shift
+done
 
 if [ -z "$INFILE" ]; then
     printHelp
     exit
 fi
 
+filesExist $INFILE
+ISLIST=$?
 if [ -z "$OUTFILE" ]; then
-    BASENAME=`echo $INFILE | sed "s/\..*//"`
-    OUTFILE="$BASENAME.mp4"
+    if [ $ISLIST -eq 1 ]; then
+        onError "You must supply and output filename when combining files"
+    else
+        BASENAME=`echo $INFILE | sed "s/\..*//"`
+        OUTFILE="$BASENAME.mp4"
+    fi
 fi
 
-echo "Converting $INFILE to $OUTFILE ..."
-
-mencoder -of lavf -lavfopts format=mp4 -oac lavc -ovc lavc -lavcopts aglobal=1:\
-vglobal=1:acodec=libfaac:vcodec=mpeg4:abitrate=96:vbitrate=1500:keyint=250:\
-mbd=1:vqmax=10:lmax=10:vpass=1:turbo -af lavcresample=44100 -vf harddup \
-"$INFILE" -o "$OUTFILE"
+if [ $ISLIST -eq 0 ]; then
+    echo "Converting $INFILE to $OUTFILE ..."
+    convertFile $INFILE $OUTFILE
+else
+    CONFILES=""
+    for file in $FILES;
+    do
+        BASENAME=`echo $file | sed "s/\..*//"`
+        CONFILE="$BASENAME.mp4"
+        CONFILES="$CONFILES $CONFILE"
+        echo "Converting $file to $CONFILE ..."
+        convertFile $file $CONFILE
+    done
+    echo "Combining $CONFILES into $OUTFILE ..."
+    combineFiles "$OUTFILE $CONFILES"
+fi
