@@ -97,12 +97,9 @@ addAudioTrack() {
 }
 
 convertFile() {
-    mencoder -of lavf -lavfopts format=mp4 -oac lavc -ovc lavc -lavcopts \
-aglobal=1:vglobal=1:\
-acodec=libfaac:vcodec=mpeg4:\
-abitrate=96:vbitrate=1500:\
-keyint=250:mbd=1:vqmax=10:lmax=10:vpass=1:turbo \
-    -af lavcresample=44100 -vf harddup "$1" -o "$2"
+    mencoder -of lavf -lavfopts format=mp4 -ovc lavc -lavcopts \
+    vglobal=1:vcodec=mpeg4:vbitrate=1500:keyint=250:mbd=1:vqmax=10:lmax=10:vpass=1:turbo \
+    -vf harddup "$1" -o "$2"
 
     stampMetadata $2
 }
@@ -127,19 +124,29 @@ while [ "$1" ] ; do
       if [ ! $1 ]; then onError "-o missing output video file"; fi
       OUTFILE=$1
       ;;
-    -mt)
-      shift
-      if [ ! $1 ]; then onError "-mt missing title string"; fi
-      TITLE=$1
-      ;;
     -a)
       shift
       if [ ! $1 ]; then onError "-a missing input audio file"; fi
       AUDIOFILE=$1
       filesExist $AUDIOFILE
       ;;
+    -title)
+      shift
+      if [ ! $1 ]; then onError "-title missing title string"; fi
+      TITLE=$1
+      ;;
+    -author)
+      shift
+      if [ ! $1 ]; then onError "-author missing author string"; fi
+      AUTHOR=$1
+      ;;
+    -copyright)
+      shift
+      if [ ! $1 ]; then onError "-copyright missing copyright string"; fi
+      COPYRIGHT=$1
+      ;;
     -h)
-      COLOR=1
+      printHelp
       ;;
     *)
       onError "Unknown argument ($1)"
@@ -150,7 +157,6 @@ done
 
 if [ -z "$INFILE" ]; then
     printHelp
-    exit
 fi
 
 filesExist $INFILE
