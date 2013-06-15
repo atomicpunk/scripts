@@ -25,6 +25,9 @@
 
 INFILE=""
 OUTFILE=""
+TITLE=""
+AUTHOR="Todd E Brandt"
+COPYRIGHT="Copyright 2013 Todd Brandt <tebrandt@frontier.com>"
 
 printHelp() {
     echo ""
@@ -32,6 +35,7 @@ printHelp() {
     echo "  Arguments:"
     echo "   -i infile(s) : input video file, combines multiple files (file1,file2,...)"
     echo "   -o outfile   : output video file (default: infile.mp4)"
+    echo "   -t title     : output video file title (default: outfile name)"
     echo "   -c           : perform color correction"
     echo "   -h           : print this help text"
     echo ""
@@ -42,6 +46,13 @@ onError() {
     echo ""
     echo "ERROR: $1"
     printHelp
+}
+
+checkTool() {
+    CHECK=`which $1`
+    if [ -z "$CHECK" ]; then
+        onError "$1 is not installed\ntry 'sudo apt-get install $1'"
+    fi
 }
 
 filesExist() {
@@ -57,21 +68,38 @@ filesExist() {
     return 0
 }
 
+stampMetadata() {
+    ATITLE=$TITLE
+    if [ -z "$ATITLE" ]; then
+        ATITLE=`echo $1 | sed "s/\..*//"`
+    fi
+    TMPFILE=`tempfile -s .mp4`
+    avconv -y -i $1 -vcodec copy -acodec copy \
+    -metadata title="$ATITLE" \
+    -metadata author="$AUTHOR" \
+    -metadata copyright="$COPYRIGHT" \
+    $TMPFILE
+    mv -f $TMPFILE $1
+}
+
 convertFile() {
-mencoder -of lavf -lavfopts format=mp4 -oac lavc -ovc lavc -lavcopts aglobal=1:\
-vglobal=1:acodec=libfaac:vcodec=mpeg4:abitrate=96:vbitrate=1500:keyint=250:\
-mbd=1:vqmax=10:lmax=10:vpass=1:turbo -af lavcresample=44100 -vf harddup \
-"$1" -o "$2"
+    mencoder -of lavf -lavfopts format=mp4 -oac lavc -ovc lavc -lavcopts \
+aglobal=1:vglobal=1:\
+acodec=libfaac:vcodec=mpeg4:\
+abitrate=96:vbitrate=1500:\
+keyint=250:mbd=1:vqmax=10:lmax=10:vpass=1:turbo \
+    -af lavcresample=44100 -vf harddup "$1" -o "$2"
+
+    stampMetadata $2
 }
 
 combineFiles() {
     mencoder -oac copy -ovc copy -idx -o $1
+    stampMetadata $1
 }
 
-CHECK=`which mencoder`
-if [ -z "$CHECK" ]; then
-    onError "mencoder is not installed\ntry 'sudo apt-get install mencoder'"
-fi
+checkTool "mencoder"
+checkTool "avconv"
 
 while [ "$1" ] ; do
   case "$1" in
@@ -84,6 +112,11 @@ while [ "$1" ] ; do
       shift
       if [ ! $1 ]; then onError "-o missing outfile"; fi
       OUTFILE=$1
+      ;;
+    -t)
+      shift
+      if [ ! $1 ]; then onError "-t missing title string"; fi
+      TITLE=$1
       ;;
     -h)
       COLOR=1
