@@ -54,8 +54,12 @@ onError() {
 
 checkTool() {
     CHECK=`which $1`
+    PKG=$1
+    if [ $1 = "avconv" -o $1 = "avprobe" ]; then
+        PKG="libav-tools"
+    fi
     if [ -z "$CHECK" ]; then
-        onError "$1 is not installed\ntry 'sudo apt-get install $1'"
+        onError "$1 is not installed\ntry 'sudo apt-get install $PKG'"
     fi
 }
 
@@ -114,6 +118,7 @@ combineFiles() {
 
 checkTool "mencoder"
 checkTool "avconv"
+checkTool "avprobe"
 
 while [ "$1" ] ; do
   case "$1" in
