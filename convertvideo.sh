@@ -75,6 +75,11 @@ while [ "$1" ] ; do
   shift;
 done;
 
+if [ -z "$INFILE" ]; then
+    printHelp
+    exit
+fi
+
 if [ -z "$OUTFILE" ]; then
     BASENAME=`echo $INFILE | sed "s/\..*//"`
     OUTFILE="$BASENAME.mp4"
