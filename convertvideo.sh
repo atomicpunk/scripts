@@ -25,19 +25,23 @@
 
 INFILE=""
 OUTFILE=""
+AUDIOFILE=""
 TITLE=""
 AUTHOR="Todd E Brandt"
 COPYRIGHT="Copyright 2013 Todd Brandt <tebrandt@frontier.com>"
 
 printHelp() {
     echo ""
-    echo "USAGE: convertvideo.sh -i infile [-o outfile] [-c]"
+    echo "USAGE: convertvideo.sh -i infile [-o outfile] [-a audiofile] [-title str]"
+    echo "                                 [-author str] [-copyright str] [-h]"
     echo "  Arguments:"
-    echo "   -i infile(s) : input video file, combines multiple files (file1,file2,...)"
-    echo "   -o outfile   : output video file (default: infile.mp4)"
-    echo "   -t title     : output video file title (default: outfile name)"
-    echo "   -c           : perform color correction"
-    echo "   -h           : print this help text"
+    echo "   -i infile(s)   : input video file, combines multiple files (file1,file2,...)"
+    echo "   -o outfile     : output video file (default: same as input video file)"
+    echo "   -a audiofile   : add an audio track to the output video file"
+    echo "   -title str     : title tag (default: outfile name)"
+    echo "   -author str    : author tag (default: $AUTHOR)"
+    echo "   -copyright str : copyright tag (default: $COPYRIGHT)"
+    echo "   -h             : print this help text"
     echo ""
     exit
 }
@@ -82,6 +86,16 @@ stampMetadata() {
     mv -f $TMPFILE $1
 }
 
+addAudioTrack() {
+    ATITLE=$TITLE
+    if [ -z "$ATITLE" ]; then
+        ATITLE=`echo $1 | sed "s/\..*//"`
+    fi
+    TMPFILE=`tempfile -s .mp4`
+    avconv -y -i $1 -i $2 -shortest -vcodec copy -acodec copy $TMPFILE
+    mv -f $TMPFILE $1
+}
+
 convertFile() {
     mencoder -of lavf -lavfopts format=mp4 -oac lavc -ovc lavc -lavcopts \
 aglobal=1:vglobal=1:\
@@ -105,18 +119,24 @@ while [ "$1" ] ; do
   case "$1" in
     -i)
       shift
-      if [ ! $1 ]; then onError "-i missing infile"; fi
+      if [ ! $1 ]; then onError "-i missing input video file"; fi
       INFILE=$1
       ;;
     -o)
       shift
-      if [ ! $1 ]; then onError "-o missing outfile"; fi
+      if [ ! $1 ]; then onError "-o missing output video file"; fi
       OUTFILE=$1
       ;;
-    -t)
+    -mt)
       shift
-      if [ ! $1 ]; then onError "-t missing title string"; fi
+      if [ ! $1 ]; then onError "-mt missing title string"; fi
       TITLE=$1
+      ;;
+    -a)
+      shift
+      if [ ! $1 ]; then onError "-a missing input audio file"; fi
+      AUDIOFILE=$1
+      filesExist $AUDIOFILE
       ;;
     -h)
       COLOR=1
@@ -147,6 +167,9 @@ fi
 if [ $ISLIST -eq 0 ]; then
     echo "Converting $INFILE to $OUTFILE ..."
     convertFile $INFILE $OUTFILE
+    if [ -n "$AUDIOFILE" ]; then
+        addAudioTrack $OUTFILE $AUDIOFILE
+    fi
 else
     CONFILES=""
     for file in $FILES;
@@ -159,4 +182,7 @@ else
     done
     echo "Combining $CONFILES into $OUTFILE ..."
     combineFiles "$OUTFILE $CONFILES"
+    if [ -n "$AUDIOFILE" ]; then
+        addAudioTrack $OUTFILE $AUDIOFILE
+    fi
 fi
