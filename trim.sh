@@ -28,6 +28,7 @@ printHelp() {
     echo "USAGE: trim.sh <args> filefilter"
     echo "  Arguments:"
     echo "    -e : list all file exts under current path"
+    echo "    -d : list all empty directories"
     echo "    -v : inverse search for filefilter"
     echo "    -r : remove files matching the search"
     echo ""
@@ -55,16 +56,9 @@ for last; do true; done
 FILTER=$last
 INVERSE=0
 REMOVE=0
-
-if [ "$FILTER" = "-e" ]; then
-    findAllExts $PWD
-    exit
-fi
+EMPTY=0
 
 while [ "$1" ] ; do
-    if [ "$1" = "$FILTER" ]; then
-        break
-    fi
     case "$1" in
     -v)
         INVERSE=1
@@ -76,13 +70,27 @@ while [ "$1" ] ; do
         findAllExts $PWD
         exit
     ;;
+    -d)
+        EMPTY=1
+    ;;
     *)
+        if [ "$1" = "$FILTER" ]; then
+            break
+        fi
         onError "Unrecognized argument $1"
     ;;
     esac
     shift
 done
 
+if [ $EMPTY -eq 1 ]; then
+    if [ $REMOVE -eq 0 ]; then
+        find $PWD -type d -empty
+    else
+        find $PWD -type d -empty -exec rmdir {} \;
+    fi
+    exit
+fi
 echo -n "[Find all files "
 if [ $INVERSE -eq 1 ]; then
    echo -n "not "
