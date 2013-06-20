@@ -83,11 +83,17 @@ while [ "$1" ] ; do
     shift
 done
 
+echo -n "[Find all files "
+if [ $INVERSE -eq 1 ]; then
+   echo -n "not "
+fi
+echo -n "matching $FILTER"
 if [ $REMOVE -eq 1 ]; then
-    echo ""
-    echo "You've selected the REMOVE option, this will delete any matching files."
-    echo "Backups of all deleted files will be placed in /tmp/trim/"
-    echo ""
+    echo -n ", and remove them"
+fi
+echo "]"
+
+if [ $REMOVE -eq 1 ]; then
     echo -n "Are you sure you want to do this? (yes/no): "
     read ANSWER
     if [ "$ANSWER" != "yes" ]; then
@@ -95,12 +101,6 @@ if [ $REMOVE -eq 1 ]; then
         exit
     fi
 fi
-
-echo ""
-echo " Invert Search : $INVERSE"
-echo "Remove Matches : $REMOVE"
-echo "   File Filter : $FILTER"
-echo ""
 
 TMP=/tmp/trim
 if [ $INVERSE -eq 0 ]; then
