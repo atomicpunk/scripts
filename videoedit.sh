@@ -23,6 +23,14 @@
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+TMPVID=""
+genTempVid() {
+    TMPVID=`tempfile -s .mp4`
+    if [ -e $TMPVID ]; then
+        rm $TMPVID
+    fi
+}
+
 stampMetadata() {
     if [ "$2" ]; then
         TITLE=$2
@@ -31,35 +39,35 @@ stampMetadata() {
     fi
     AUTHOR="Todd E Brandt"
     COPYRIGHT="Copyright 2013 Todd Brandt <tebrandt@frontier.com>"
-    TMPFILE=`tempfile -s .mp4`
+    genTempVid
 
     avconv -y -i "$1" -vcodec copy -acodec copy \
     -metadata title="$TITLE" \
     -metadata author="$AUTHOR" \
     -metadata copyright="$COPYRIGHT" \
-    "$TMPFILE"
+    "$TMPVID"
 
-    mv -f "$TMPFILE" "$1"
+    mv -f "$TMPVID" "$1"
 }
 
 addAudioTrack() {
-    TMPFILE=`tempfile -s .mp4`
-    mencoder -ovc copy -nosound "$1" -o $TMPFILE
-    if [ -e $TMPFILE -a -s $TMPFILE ]; then
-        MUTEFILE=$TMPFILE
+    genTempVid
+    avconv -i "$1" -an -c:v copy "$TMPVID"
+    if [ -e $TMPVID -a -s $TMPVID ]; then
+        MUTEFILE=$TMPVID
     else
-        echo "ERROR: mencoder failed to remove the existing audio track"
-        rm $TMPFILE
+        echo "ERROR: avconv failed to remove the existing audio track"
+        rm $TMPVID
         return
     fi
-    TMPFILE=`tempfile -s .mp4`
-    avconv -y -i "$MUTEFILE" -i "$2" -shortest -vcodec copy -acodec copy $TMPFILE
+    genTempVid
+    avconv -y -i "$MUTEFILE" -i "$2" $3 -vcodec copy -acodec copy $TMPVID
     rm $MUTEFILE
-    if [ -e $TMPFILE -a -s $TMPFILE ]; then
-        mv -f $TMPFILE $1
+    if [ -e $TMPVID -a -s $TMPVID ]; then
+        mv -f $TMPVID $1
     else
         echo "ERROR: avconf failed to add the new track"
-        rm $TMPFILE
+        rm $TMPVID
         return
     fi
 
@@ -69,11 +77,18 @@ addAudioTrack() {
 convertFile() {
     echo "Converting $1 to $2 ..."
 
+#    mencoder -of lavf -lavfopts format=mp4 -oac lavc -ovc lavc -fps 12 -lavcopts \
     mencoder -of lavf -lavfopts format=mp4 -oac lavc -ovc lavc -lavcopts \
-aglobal=1:vglobal=1:acodec=libfaac:vcodec=mpeg4:abitrate=128:vbitrate=1500:\
+aglobal=1:vglobal=1:acodec=aac:vcodec=mpeg4:abitrate=128:vbitrate=1500:\
 keyint=250:mbd=1:vqmax=10:lmax=10:vpass=1:turbo \
     -af lavcresample=44100 -vf harddup "$1" -o "$2"
 
+    if [ -e $2 -a -s $2 ]; then
+        MUTEFILE=$TMPVID
+    else
+        echo "ERROR: mencoder failed to convert the file"
+        return
+    fi
     stampMetadata "$2"
 }
 
@@ -94,7 +109,8 @@ printHelp() {
     echo "        args : outfile infile1 infile2 infile3 ..."
     echo "     audio"
     echo "        desc : add an audio track to a video file"
-    echo "        args : videofile audiofile"
+    echo "               (short/long sets the length to the shorter/longer of the two)"
+    echo "        args : videofile audiofile <short/long>"
     echo "     title"
     echo "        desc : add a title to a video file"
     echo "        args : videofile titletext"
@@ -158,10 +174,14 @@ case "$COMMAND" in
         combineFiles "$OUTFILE" "$INFILES"
     ;;
     audio)
-        if [ $# -ne 2 ]; then onError "audio track requires one audio and one video file"; fi
+        if [ $# -ne 2 -a $# -ne 3 ]; then onError "audio track requires one audio and one video file"; fi
         fileExists "$1"
         fileExists "$2"
-        addAudioTrack "$1" "$2"
+        if [ $# -eq 3 -a "$3" = "long" ]; then
+            addAudioTrack "$1" "$2" ""
+        else
+            addAudioTrack "$1" "$2" "-shortest"
+        fi
     ;;
     title)
         if [ $# -ne 2 ]; then onError "setting the title requires one video file and a string"; fi

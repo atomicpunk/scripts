@@ -27,12 +27,10 @@ if [ $# -ne 1 ]; then
     exit
 fi
 
-PROCESS=`ps aux | grep $1 | grep -v grep | grep -v $0 | head -n1`
-PID=`echo $PROCESS | awk '{print $2}'`
+PIDS=`ps aux | grep $1 | grep -v grep | grep -v $0 | awk '{print $2}'`
 
-if [ -n "$PID" ]; then
+for PID in $PIDS
+do
     echo "Destroying $PID"
     kill -9 $PID
-else
-    echo "No such process"
-fi
+done
