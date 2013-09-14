@@ -100,6 +100,10 @@ testServer() {
 
 buildKernel() {
     getExpectedPackages
+    if [ -z "$ARCH" ]; then
+        echo "ERROR: The .config file is either missing or set to a non-x86 architecture"
+        exit
+    fi
     echo "Bulding kernel ${KVER}-${NAME} for ${ARCH}"
     cd $SRCPATH
     make oldconfig
