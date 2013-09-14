@@ -104,6 +104,7 @@ buildKernel() {
     cd $SRCPATH
     make oldconfig
     make -j `getconf _NPROCESSORS_ONLN` deb-pkg LOCALVERSION=-$NAME
+    getExpectedPackages
     cd $OUTPATH
     for file in $PKGS
     do
@@ -123,6 +124,7 @@ buildKernel() {
 
 installKernel() {
     if [ -n "$SERVER" ]; then
+        cd $OUTPATH
         if [ $SERVER = "local" ]; then
             echo "INSTALLING LOCALLY"
             sudo dpkg -i $PKGS
