@@ -3,8 +3,6 @@
 SERVER=""
 REBOOT="no"
 KBUILD="ubuntu-raring"
-#OPATH="/ramdisk/"
-#BPATH="/ramdisk/$KBUILD"
 OPATH="/home/tebrandt/workspace/"
 BPATH="/home/tebrandt/workspace/$KBUILD"
 LOG="$OPATH/build.log"
