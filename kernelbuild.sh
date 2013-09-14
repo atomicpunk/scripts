@@ -73,6 +73,7 @@ printVersion() {
     echo "  Release: $KREL"
     echo "    Build: $BVER"
     echo "     Arch: $ARCH"
+    echo "Built Packages:"
     cd $OUTPATH
     for file in $PKGS
     do
