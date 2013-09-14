@@ -31,10 +31,32 @@ import re
 import array
 import datetime
 
-def executeScan(filename, res):
-    print("Scan resolution = %s") % res
+def executeScan(filename, filename2, res):
     tiff = tempfile.NamedTemporaryFile(suffix='.tiff').name
-    tmp = tempfile.NamedTemporaryFile(suffix='.jpg').name
+
+    custom = False
+    r = 600
+    w = 200
+    h = 200
+    m = re.match(r"(?P<w>[0-9]*)x(?P<h>[0-9]*)$", res)
+    if(m):
+        custom = True
+        w = m.group("w")
+        h = m.group("h")
+    m = re.match(r"(?P<w>[0-9]*)x(?P<h>[0-9]*):(?P<r>[0-9]*)$", res)
+    if(m):
+        custom = True
+        w = m.group("w")
+        h = m.group("h")
+        r = m.group("r")
+    if(custom):
+        print("Custom scan: %s dpi, %smm x %smm") % (r, w, h)
+        os.system("scanimage -d kodakaio --resolution="+r+" -x "+w+"mm -y "+h+"mm --format=tiff --mode=Color > "+tiff)
+        print("Storing image as %s ...") % filename
+        os.system("convert "+tiff+" "+filename)
+        os.remove(tiff)
+        return
+
     print("Scanning image to %s ...") % tiff
     if(res == "highsmall"):
         os.system("scanimage -d kodakaio --resolution=600 -x 130mm -y 130mm --format=tiff --mode=Color > "+tiff)
@@ -45,9 +67,14 @@ def executeScan(filename, res):
     elif(res == "highbig"):
         os.system("scanimage -d kodakaio --resolution=600 -x 200mm -y 200mm --format=tiff --mode=Color > "+tiff)
         args = "convert "+tiff+" -format \"%wx%h%O\" -despeckle -blur 0x15 -despeckle -fuzz 30% -trim "
-    elif(res == "minisnap"):
-        os.system("scanimage -d kodakaio --resolution=600 -x 140mm -y 140mm --format=tiff --mode=Color > "+tiff)
-        args = "convert "+tiff+" -format \"%wx%h%O\" -despeckle -blur 0x15 -fuzz 20% -trim "
+    elif(res == "doublenegative"):
+        os.system("scanimage -d kodakaio --resolution=600 -x 60mm -y 120mm --format=tiff --mode=Color > "+tiff)
+        print("Storing image as %s ...") % filename
+        os.system("convert "+tiff+" -crop 1417x1417+0+0 -negate "+filename)
+        print("Storing image as %s ...") % filename2
+        os.system("convert "+tiff+" -crop 1417x1417+0+1417 -negate "+filename2)
+        os.remove(tiff)
+        return
     elif(res == "nminisnap"):
         os.system("scanimage -d kodakaio --resolution=300 -x 140mm -y 140mm --format=tiff --mode=Color > "+tiff)
         args = "convert "+tiff+" -format \"%wx%h%O\" -despeckle -blur 0x15 -fuzz 20% -trim "
@@ -72,6 +99,7 @@ def executeScan(filename, res):
     if(not os.path.isfile(tiff)):
         print("ERROR: %s not found, scan failed") % tiff
         sys.exit()
+    tmp = tempfile.NamedTemporaryFile(suffix='.jpg').name
     size = os.popen(args+"info:").read().strip()
     print("Cropping to %s") % size
     os.system(args+tmp)
@@ -93,8 +121,8 @@ def processDir(outdir, file):
                     index = i
     return index
 
-imgdir = "/media/tebrandt/fatman2/Pictures/scans/"
-docdir = "/media/tebrandt/fatman2/Pictures/docs/"
+imgdir = "/media/fatman/Pictures/scans/"
+docdir = "/media/fatman/Pictures/docs/"
 outdir = imgdir
 file = "scan"
 cmd = ""
@@ -109,4 +137,6 @@ if(index < 0):
     sys.exit()
 index += 1
 filename = outdir+file+"%d.jpg"%index
-executeScan(filename, cmd)
+index += 1
+filename2 = outdir+file+"%d.jpg"%index
+executeScan(filename, filename2, cmd)
