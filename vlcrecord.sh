@@ -1,80 +1,73 @@
 #!/bin/sh
-#
-# Copyright 2012 Todd Brandt <tebrandt@frontier.com>
-#
-# This program is free software; you may redistribute it and/or modify it
-# under the GNU GPL license.
-#
-#    Video record utility for mjpg-streamer
-#    Copyright (C) 2012 Todd Brandt <tebrandt@frontier.com>
-#
-#    This program is free software; you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License along
-#    with this program; if not, write to the Free Software Foundation, Inc.,
-#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
 
-URL=""
-LENGTH=300
+URL="http://192.168.1.6:8090/?action=stream"
 OUTPATH="$HOME/Videos"
-OUTFILE=`date "+%m%d%y-%H%M%S.mp4"`
+PIDFILE="$HOME/Videos/vlcrecord.pid"
 
 printHelp() {
 	echo ""
-	echo "VLCRecord - records video from a network stream"
-	echo "USAGE: vlcrecord <url> [len]"
-	echo "Arguments"
-	echo "    url: url for the network stream to record from"
-	echo "    len: number of seconds to record for (default 300)"
+	echo "VLCRecord - records video from the OpenROV stream"
+	echo "USAGE: vlcrecord start/stop"
 	echo ""
 	exit
 }
 
-if [ $# -lt 1 -o $# -gt 2 ]; then
+recordingInProgress() {
+	if [ ! -e $PIDFILE ]; then
+		return 0
+	fi
+	PID=`cat $PIDFILE`
+	PROCESS=`ps --pid $PID --no-headers | awk '{print $4}'`
+	if [ "$PROCESS" = "vlc" ]; then
+		return $PID
+	fi
+	return 0
+}
+
+on_start() {
+	recordingInProgress
+	PID=$?
+	if [ $PID -gt 0 ]; then
+		FILE=`ps --pid $PID -o args --no-headers | sed "s/.*dst=//;s/}.*//"`
+		echo "Already Recording $PID: $FILE"
+		return
+	fi
+	OUTFILE=`date "+openrov-%m%d%y-%H%M%S.mp4"`
+	cvlc -vvv $URL --no-audio :sout=#transcode{vb=800}:file{dst=$OUTPATH/$OUTFILE} :sout-keep > /dev/null 2>&1 &
+	PID=$!
+	echo "New Recording $PID: $OUTPATH/$OUTFILE"
+	echo $PID > $PIDFILE
+}
+
+on_stop() {
+	recordingInProgress
+	PID=$?
+	if [ $PID -gt 0 ]; then
+		FILE=`ps --pid $PID -o args --no-headers | sed "s/.*dst=//;s/}.*//"`
+		echo "Stopping $PID: $FILE"
+		kill -s QUIT $PID
+		PSINFO=`ps --pid $PID --no-headers`
+		while [ -n "$PSINFO" ] ; do
+			echo -n "."
+			sleep 1
+			PSINFO=`ps --pid $PID --no-headers`
+		done
+		echo ""
+		rm -f $PIDFILE
+	else
+		echo "No Recording"
+	fi
+}
+
+if [ $# -lt 1 -o $# -gt 1 ]; then
 	printHelp
 fi
 
-if [ $1 = "door" ]; then
-	URL="http://localhost:8091/?action=stream"
-	OUTFILE=$1-$OUTFILE
-elif [ $1 = "front" ]; then
-	URL="http://localhost:8090/?action=stream"
-	OUTFILE=$1-$OUTFILE
-elif [ $1 = "back" ]; then
-	URL="http://slate.local:8090/?action=stream"
-	OUTFILE=$1-$OUTFILE
+if [ $1 = "start" ]; then
+	on_start
+elif [ $1 = "stop" ]; then
+	on_stop
 else
-	NAME=`echo $1 | sed "s/.*\/\///;s/\:.*//"`
-	OUTFILE=$NAME-$OUTFILE
-	URL=$1
+	echo "ERROR: Invalid argument - $1"
+	printHelp
 fi
-
-if [ $# -ge 2 ]; then
-	CHECK=`echo $2 | sed "s/[0-9]//g"`
-	if [ -n "$CHECK" ]; then
-		echo "ERROR: What the hell is this? $2"
-		printHelp
-	fi
-	LENGTH=`expr $2`
-	if [ $LENGTH -lt 1 -o $LENGTH -gt 3600 ]; then
-		echo "ERROR: Length has a minimum of 1 second, and a max of 1 hour"
-		printHelp
-	fi
-fi
-
-cvlc -vvv $URL --no-audio :sout=#transcode{vcodec=h264}:file{dst=$OUTPATH/$OUTFILE} :sout-keep > /dev/null 2>&1 &
-PID=$!
-echo "New Recording: $OUTPATH/$OUTFILE ..."
-sleep 1
-sleep $LENGTH
-echo "Stopping: $OUTPATH/$OUTFILE"
-kill -s QUIT $PID
