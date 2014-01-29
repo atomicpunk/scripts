@@ -32,7 +32,7 @@ getDisplayCount() {
 
 getDisplay() {
     P=$1
-    VALS=`xrandr | grep "connected.*mm" | sed -e "s/ (.*//;s/.* connected //;s/[x+]/ /g" | awk '{print $3,$4,$1,$2}' | sort | head -n$P | tail -n1`
+    VALS=`xrandr | grep "connected.*mm" | sed -e "s/ (.*//;s/.* connected //;s/primary//;s/[x+]/ /g" | awk '{print $3,$4,$1,$2}' | sort | head -n$P | tail -n1`
     echo $VALS
     X=`echo $VALS | awk '{print $1}'`
     Y=`echo $VALS | awk '{print $2}'`
