@@ -24,6 +24,7 @@
 #
 
 import sys
+import time
 import os
 import string
 import re
@@ -54,12 +55,13 @@ class Celestron:
 	}
 	fp = 0
 	online = False
-	atrest = False
+	moving = False
 	aligning = False
 	aligned = False
 	version = [0.0, 0.0, 0.0]
 	altitude = 90.0
 	azimuth = 90.0
+	wait = False
 	def __init__(self):
 		self.fp = serial.Serial(
 			port=self.devpath,\
@@ -92,9 +94,9 @@ class Celestron:
 		if(v): print("   Alt Motor version: %.1f" % self.version[2])
 
 		res = self.cmdExec(self.cmdlist['check-goto'])
-		self.atrest = False
-		if(res == "0"): self.atrest = True
-		if(v): print("  Is machine at rest: %s" % r[self.atrest])
+		self.moving = False
+		if(res == "1"): self.moving = True
+		if(v): print("   Is machine moving: %s" % r[self.moving])
 
 		res = self.cmdExec(self.cmdlist['check-align'])
 		self.aligned = self.aligning = False
@@ -124,6 +126,18 @@ class Celestron:
 		hexazi = int((azi / 360) * 0x100000000)
 		cmd = "b%08x,%08x" % (hexalt, hexazi)
 		res = self.cmdExec(cmd)
+		if(self.wait):
+			self.moving = True
+			while self.moving:
+				self.getAltAzi()
+				msg = "  ALTITUDE %.2f deg : AZIMUTH %.2f deg" % (self.altitude, self.azimuth)
+				sys.stdout.write(msg + " \r")
+				sys.stdout.flush()
+				time.sleep(.5)
+				res = self.cmdExec(self.cmdlist['check-goto'])
+				if(res == "0"):
+					self.moving = False
+					print msg
 	def cmdName(self, cmd):
 		for name in self.cmdlist:
 			fmt = self.cmdlist[name]
@@ -167,9 +181,9 @@ def doError(msg, help):
 		printHelp()
 	sys.exit()
 
-
 # -- script main --
 # loop through the command line arguments
+cmd = []
 args = iter(sys.argv[1:])
 for arg in args:
 	if(arg == "-h"):
@@ -177,19 +191,21 @@ for arg in args:
 		sys.exit()
 	elif(arg == "-cmd"):
 		try:
-			cmd = args.next()
+			rawcmd = args.next()
 		except:
 			doError("No cmd supplied", True)
-		name = celestron.cmdName(cmd)
+		name = celestron.cmdName(rawcmd)
 		if(name == ""):
-			doError("Invalid command (%s)" % cmd, False)
-		print("Issuing %s : '%s' ..." % (name, cmd))
-		res = celestron.cmdExec(cmd)
-		print("Result from '%s' = '%s'" % (cmd, res))
+			doError("Invalid command (%s)" % rawcmd, False)
+		print("Issuing %s : '%s' ..." % (name, rawcmd))
+		res = celestron.cmdExec(rawcmd)
+		print("Result from '%s' = '%s'" % (rawcmd, res))
 		sys.exit()
  	elif(arg == "-status"):
 		celestron.status(True)
 		sys.exit()
+ 	elif(arg == "-wait"):
+		celestron.wait = True
  	elif(arg == "-cancel"):
 		celestron.status(False)
 		if(celestron.online):
@@ -210,11 +226,13 @@ for arg in args:
 			doError("Altitude %.2f is not between 0 and 180" % alt, False)
 		if(azi < 0 or azi >= 360):
 			doError("Azimuth %.2f is not between 0 and 360" % azi, False)
-		celestron.status(False)
-		if(celestron.online):
-			celestron.gotoAltAzi(alt, azi)
-		else:
-			doError("Connection off-line", False)
-		sys.exit()
+		cmd = ["altazi", alt, azi]
 	else:
 		doError("Invalid argument: "+arg, True)
+
+if(cmd):
+	celestron.status(False)
+	if(not celestron.online):
+		doError("Connection off-line", False)
+	if(cmd[0] == "altazi"):
+		celestron.gotoAltAzi(cmd[1], cmd[2])
