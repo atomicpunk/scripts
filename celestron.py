@@ -32,6 +32,9 @@ import array
 import datetime
 import struct
 import serial
+import ntplib
+
+# hillsboro, OR: 45 31 5 0, 122 54 7 1
 
 class Celestron:
 	devpath = "/dev/ttyUSB0"
@@ -40,6 +43,7 @@ class Celestron:
 		'cancel'		: 'M',
 		'get-time'		: 'h',
 		'get-location'	: 'w',
+		'set-location'	: 'W\x2d\x1f\x05\x00\x7a\x36\x07\x01',
 		'check-goto'	: 'L',
 		'check-align'	: 'J',
 		'version-hc'	: 'V',
@@ -120,6 +124,24 @@ class Celestron:
 			print("            Altitude: %.2f deg" % self.altitude)
 			print("             Azimuth: %.2f deg" % self.azimuth)
 		return True
+	def initControl(self):
+		self.status(False)
+		if(not self.online):
+			doError("Telescope is not connected", False)
+		self.cmdExec(self.cmdlist['set-location'])
+		self.setTime()
+		self.status(True)
+	def setTime(self):
+		cl = ntplib.NTPClient()
+		try:
+			response = cl.request('nist-time-server.eoni.com', version=3)
+			t = time.gmtime(response.tx_time)
+		except:
+			print "ERROR: NTP server failed, using local time"
+			t = time.gmtime()
+		rawcmd = struct.pack("cBBBBBBBB", 'H', t.tm_hour, t.tm_min,
+				t.tm_sec, t.tm_mon, t.tm_mday, t.tm_year-2000, 0, 0)
+		self.cmdExec(rawcmd)
 	def getTime(self):
 		res = self.cmdExec(self.cmdlist['get-time'])
 		tmp = struct.unpack("BBBBBBBB", res)
@@ -197,6 +219,7 @@ def printHelp():
 	print("Options:")
 	print("  -h               Print this help text")
 	print("  -cmd rawcmd      Execute a raw command")
+	print("  -init            Initialize the telescope computer")
 	print("  -status          Print the telescope status")
 	print("  -cancel          Cancel a goto move, stop the telescope")
 	print("  -altazi alt azi  Goto altitude azimuth")
@@ -228,6 +251,9 @@ for arg in args:
 		sys.exit()
  	elif(arg == "-status"):
 		celestron.status(True)
+		sys.exit()
+ 	elif(arg == "-init"):
+		celestron.initControl()
 		sys.exit()
  	elif(arg == "-wait"):
 		celestron.wait = True
