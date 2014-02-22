@@ -248,7 +248,8 @@ def printHelp():
 	print("  -cmd rawcmd      Execute a raw command")
 	print("  -init            Initialize the telescope computer")
 	print("  -status          Print the telescope status")
-	print("  -cancel          Cancel a goto move, stop the telescope")
+	print("  -cancel          Cancel a goto move, but leave tracking")
+	print("  -stop            Completely stop the telescope")
 	print("  -altazi alt azi  Goto altitude azimuth")
 	print("")
 	return True
@@ -288,6 +289,14 @@ for arg in args:
 		celestron.status(False)
 		if(celestron.online):
 			celestron.cmdExec(celestron.cmdlist['cancel'])
+		else:
+			doError("Connection off-line", False)
+		sys.exit()
+ 	elif(arg == "-stop"):
+		celestron.status(False)
+		if(celestron.online):
+			celestron.cmdExec(celestron.cmdlist['cancel'])
+			celestron.cmdExec(celestron.cmdlist['stop-tracking'])
 		else:
 			doError("Connection off-line", False)
 		sys.exit()
