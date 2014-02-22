@@ -42,6 +42,7 @@ class Celestron:
 		'test'			: 'Kx',
 		'cancel'		: 'M',
 		'get-time'		: 'h',
+		'get-model'		: 'm',
 		'get-location'	: 'w',
 		'set-location'	: 'W\x2d\x1f\x05\x00\x7a\x36\x07\x01',
 		'check-goto'	: 'L',
@@ -49,7 +50,9 @@ class Celestron:
 		'version-hc'	: 'V',
 		'version-azi'	: 'P\x01\x10\xfe\x00\x00\x00\x02',
 		'version-alt'	: 'P\x01\x11\xfe\x00\x00\x00\x02',
-		'tracking'		: '^T(?P<a>[0-3]{1})$',
+		'get-tracking'	: 't',
+		'start-tracking': 'T\x02',
+		'stop-tracking' : 'T\x00',
 		'get-az-alt16'	: 'Z',
 		'get-az-alt32'	: 'z',
 		'set-az-alt16'	: '^B(?P<a>[0-9,A-F]{4}),(?P<b>[0-9,A-F]{4})$',
@@ -59,6 +62,8 @@ class Celestron:
 		'set-ra-dec16'	: '^R(?P<a>[0-9,A-F]{4}),(?P<b>[0-9,A-F]{4})$',
 		'set-ra-dec32'	: '^r(?P<a>[0-9,A-F]{8}),(?P<b>[0-9,A-F]{8})$',
 	}
+	trackmodes = ["Off", "Alt/Az", "EQ North", "EQ South"]
+	tracking = 0
 	fp = 0
 	online = False
 	moving = False
@@ -100,8 +105,15 @@ class Celestron:
 		if(v): print("   Alt Motor version: %.1f" % self.version[2])
 
 		if(self.version[0] > 5):
-			if(v): print("  Telescope UTC Time: %s" % self.getTime())
-			if(v): print("  Telescope Location: %s" % self.getLocation())
+			res = self.cmdExec(self.cmdlist['get-model'])
+			models = [" ", "GPS Series", " ", "i-Series",
+				"i-Series SE", "CGE", "Advanced GT", "SLT",
+				" ", "CPC", "GT", "4/5 SE", "6/8 SE"]
+			m = models[struct.unpack("B", res)[0]]
+			if(v):
+				print("     Telescope Model: %s" % m)
+				print("  Telescope UTC Time: %s" % self.getTime())
+				print("  Telescope Location: %s" % self.getLocation())
 
 		res = self.cmdExec(self.cmdlist['check-goto'])
 		self.moving = False
@@ -119,6 +131,14 @@ class Celestron:
 			val = "In Progress"
 		if(v): print("  Is machine aligned: %s" % val)
 
+		res = self.cmdExec(self.cmdlist['get-tracking'])
+		try:
+			self.tracking = struct.unpack("B", res)[0]
+		except:
+			self.tracking = 0
+		val = self.trackmodes[(self.tracking)%4]
+		if(v): print("    Machine tracking: %s" % val)
+
 		self.getAltAzi()
 		if(v):
 			print("            Altitude: %.2f deg" % self.altitude)
@@ -130,6 +150,7 @@ class Celestron:
 			doError("Telescope is not connected", False)
 		self.cmdExec(self.cmdlist['set-location'])
 		self.setTime()
+		self.cmdExec(self.cmdlist['start-tracking'])
 		self.status(True)
 	def setTime(self):
 		cl = ntplib.NTPClient()
@@ -144,7 +165,10 @@ class Celestron:
 		self.cmdExec(rawcmd)
 	def getTime(self):
 		res = self.cmdExec(self.cmdlist['get-time'])
-		tmp = struct.unpack("BBBBBBBB", res)
+		try:
+			tmp = struct.unpack("BBBBBBBB", res)
+		except:
+			doError("Bad return for get-time: %s" % res, False)
 		t = datetime.datetime(int(tmp[5])+2000, int(tmp[3]),
 			int(tmp[4]), int(tmp[0]), int(tmp[1]), int(tmp[2]))
 		dH = int(tmp[6])
@@ -157,7 +181,10 @@ class Celestron:
 		return t
 	def getLocation(self):
 		res = self.cmdExec(self.cmdlist['get-location'])
-		tmp = struct.unpack("BBBBBBBB", res)
+		try:
+			tmp = struct.unpack("BBBBBBBB", res)
+		except:
+			doError("Bad return for get-location: %s" % res, False)
 		ew = ['E', 'W']
 		ns = ['N', 'S']
 		loc = "%d %d\'%d\" %s, %d %d\'%d\" %s" % \
