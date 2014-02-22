@@ -38,6 +38,8 @@ class Celestron:
 	cmdlist = {
 		'test'			: 'Kx',
 		'cancel'		: 'M',
+		'get-time'		: 'h',
+		'get-location'	: 'w',
 		'check-goto'	: 'L',
 		'check-align'	: 'J',
 		'version-hc'	: 'V',
@@ -93,6 +95,10 @@ class Celestron:
 		self.version[2] = float(tmp[0]) + (float(tmp[1]) / 10.0)
 		if(v): print("   Alt Motor version: %.1f" % self.version[2])
 
+		if(self.version[0] > 5):
+			if(v): print("  Telescope UTC Time: %s" % self.getTime())
+			if(v): print("  Telescope Location: %s" % self.getLocation())
+
 		res = self.cmdExec(self.cmdlist['check-goto'])
 		self.moving = False
 		if(res == "1"): self.moving = True
@@ -114,6 +120,28 @@ class Celestron:
 			print("            Altitude: %.2f deg" % self.altitude)
 			print("             Azimuth: %.2f deg" % self.azimuth)
 		return True
+	def getTime(self):
+		res = self.cmdExec(self.cmdlist['get-time'])
+		tmp = struct.unpack("BBBBBBBB", res)
+		t = datetime.datetime(int(tmp[5])+2000, int(tmp[3]),
+			int(tmp[4]), int(tmp[0]), int(tmp[1]), int(tmp[2]))
+		dH = int(tmp[6])
+		if(dH > 200):
+			dH = 256 - dH
+		else:
+			dH = 0 - dH
+		dH = dH - int(tmp[7])
+		t += datetime.timedelta(hours=dH)
+		return t
+	def getLocation(self):
+		res = self.cmdExec(self.cmdlist['get-location'])
+		tmp = struct.unpack("BBBBBBBB", res)
+		ew = ['E', 'W']
+		ns = ['N', 'S']
+		loc = "%d %d\'%d\" %s, %d %d\'%d\" %s" % \
+			(int(tmp[0]), int(tmp[1]), int(tmp[2]), ns[int(tmp[3])],
+			 int(tmp[4]), int(tmp[5]), int(tmp[6]), ew[int(tmp[7])])
+		return loc
 	def getAltAzi(self):
 		res = self.cmdExec(self.cmdlist['get-az-alt32'])
 		m = re.match('^(?P<alt>[0-9,A-F]{8}),(?P<azi>[0-9,A-F]{8})$', res)
@@ -194,10 +222,7 @@ for arg in args:
 			rawcmd = args.next()
 		except:
 			doError("No cmd supplied", True)
-		name = celestron.cmdName(rawcmd)
-		if(name == ""):
-			doError("Invalid command (%s)" % rawcmd, False)
-		print("Issuing %s : '%s' ..." % (name, rawcmd))
+		print("Issuing cmd : '%s' ..." % (rawcmd))
 		res = celestron.cmdExec(rawcmd)
 		print("Result from '%s' = '%s'" % (rawcmd, res))
 		sys.exit()
