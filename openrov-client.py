@@ -26,6 +26,7 @@
 import pygtk
 pygtk.require('2.0')
 import gtk
+import cairo
 import sys
 import socket
 import re
@@ -170,7 +171,7 @@ def printHelp():
 	print("  Controls an OpenROV device via an ethernet connection")
 	print("")
 	print("Options:")
-	print("  -h               Print this help text")
+	print("  -h           Print this help text")
 	print("  -v               Verbose print")
 	print("")
 	return True
@@ -180,6 +181,14 @@ def doError(msg, help):
 	if(help == True):
 		printHelp()
 	sys.exit()
+
+def transparent_expose(widget, event):
+	cr = widget.window.cairo_create()
+	cr.set_operator(cairo.OPERATOR_CLEAR)
+	region = gtk.gdk.region_rectangle(event.area)
+	cr.region(region)
+	cr.fill()
+	return False
 
 if __name__ == "__main__":
 	args = iter(sys.argv[1:])
@@ -195,11 +204,20 @@ if __name__ == "__main__":
 	openrov.cmdExec("allstop")
 	window = gtk.Window(gtk.WINDOW_TOPLEVEL)
 	window.set_title("OpenROV")
+	window.set_resizable(False)
 	window.connect("destroy", quit)
 	window.connect("key_press_event", openrov.key_press_event)
 	window.connect("key_release_event", openrov.key_release_event)
-	window.set_border_width(10)
+	window.set_flags(gtk.SENSITIVE)
+	window.set_border_width(0)
 	window.set_size_request(450, 250)
 	window.set_keep_above(True)
+
+	screen = window.get_screen()
+	rgba = screen.get_rgba_colormap()
+	window.set_colormap(rgba)
+	window.set_app_paintable(True)
+	window.connect("expose-event", transparent_expose)
+
 	window.show()
 	gtk.main()
