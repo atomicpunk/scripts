@@ -40,13 +40,14 @@ class OpenROV:
 	port = 1500
 	vdt = 500
 	hdt = 500
+	camera = 0
 	cmdlist = {
 		'w' : ';light(255);',
 		's' : ';light(128);',
 		'x' : ';light(0);',
-		'q' : ';tilt(1800);',
-		'a' : ';tilt(1350);',
-		'z' : ';tilt(1000);',
+		'q' : ';tilt(2100);',
+		'a' : ';tilt(1620);',
+		'z' : ';tilt(1200);',
 		'1' : ';thrust(1);',
 		'2' : ';thrust(2);',
 		'3' : ';thrust(3);',
@@ -56,6 +57,9 @@ class OpenROV:
 		'7' : ';thrust(7);',
 		'8' : ';thrust(8);',
 		'9' : ';thrust(9);',
+		'n' : ';camera(0);',
+		'b' : ';camera(1);',
+		'm' : ';camera(2);',
 	}
 	arrows = {
 		'Up' : False,
@@ -68,14 +72,23 @@ class OpenROV:
 
 	def cmdExec(self, cmd):
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		try:
-			sock.connect(("192.168.1.231", 2323))
-			sock.sendall(cmd + "\n")
-			ret = sock.recv(1024)
-			if(self.verbose):
-				print("%s -> %s" % (cmd, ret))
-		finally:
-			sock.close()
+		if(re.match(r";camera\((?P<val>.*)\);", cmd)):
+			try:
+				sock.connect(("192.168.1.231", 3001))
+				sock.sendall(cmd)
+				if(self.verbose):
+					print("%s" % cmd)
+			finally:
+				sock.close()
+		else:
+			try:
+				sock.connect(("192.168.1.231", 2323))
+				sock.sendall(cmd + "\n")
+				ret = sock.recv(1024)
+				if(self.verbose):
+					print("%s -> %s" % (cmd, ret))
+			finally:
+				sock.close()
 	def update(self, cmd):
 		change = False
 		m = re.match(r";(?P<name>.*)\((?P<val>.*)\);", cmd)
@@ -89,6 +102,10 @@ class OpenROV:
 			if(self.tilt != val):
 				self.tilt = val
 				change = True
+		elif(n == "camera"):
+			if(self.camera != val):
+				self.camera = val
+			change = True
 		elif(n == "thrust"):
 			dT = 64 + pow(2, val);
 			dT = max(min(dT, 500), 64);

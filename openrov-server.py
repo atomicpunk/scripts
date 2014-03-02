@@ -48,7 +48,7 @@ class OpenROV:
 			self.cmdExec(";light(0);")
 			time.sleep(0.2)
 	def allstop(self):
-		self.cmdExec(";tilt(1350);")
+		self.cmdExec(";tilt(1620);")
 		self.cmdExec(";go(1500,1500,1500);")
 		self.cmdExec(";light(0);")
 	def cmdCheck(self, cmd):
