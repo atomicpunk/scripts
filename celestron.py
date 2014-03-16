@@ -67,7 +67,6 @@ class Celestron:
 	fp = 0
 	online = False
 	moving = False
-	aligning = False
 	aligned = False
 	version = [0.0, 0.0, 0.0]
 	altitude = 90.0
@@ -94,15 +93,16 @@ class Celestron:
 		self.version[0] = float(tmp[0]) + (float(tmp[1]) / 10.0)
 		if(v): print("Hand Control version: %.1f" % self.version[0])
 
-		res = self.cmdExec(self.cmdlist['version-azi'])
-		tmp = struct.unpack("BB", res)
-		self.version[1] = float(tmp[0]) + (float(tmp[1]) / 10.0)
-		if(v): print("   Azi Motor version: %.1f" % self.version[1])
+		if(self.version[0] > 3):
+			res = self.cmdExec(self.cmdlist['version-azi'])
+			tmp = struct.unpack("BB", res)
+			self.version[1] = float(tmp[0]) + (float(tmp[1]) / 10.0)
+			if(v): print("   Azi Motor version: %.1f" % self.version[1])
 
-		res = self.cmdExec(self.cmdlist['version-alt'])
-		tmp = struct.unpack("BB", res)
-		self.version[2] = float(tmp[0]) + (float(tmp[1]) / 10.0)
-		if(v): print("   Alt Motor version: %.1f" % self.version[2])
+			res = self.cmdExec(self.cmdlist['version-alt'])
+			tmp = struct.unpack("BB", res)
+			self.version[2] = float(tmp[0]) + (float(tmp[1]) / 10.0)
+			if(v): print("   Alt Motor version: %.1f" % self.version[2])
 
 		if(self.version[0] > 5):
 			res = self.cmdExec(self.cmdlist['get-model'])
@@ -121,23 +121,21 @@ class Celestron:
 		if(v): print("   Is machine moving: %s" % r[self.moving])
 
 		res = self.cmdExec(self.cmdlist['check-align'])
-		self.aligned = self.aligning = False
+		self.aligned = False
 		val = r[False]
 		if(res == "1"):
 			self.aligned = True
 			val = r[True]
-		elif(res == "0"):
-			self.aligning = True
-			val = "In Progress"
 		if(v): print("  Is machine aligned: %s" % val)
 
-		res = self.cmdExec(self.cmdlist['get-tracking'])
-		try:
-			self.tracking = struct.unpack("B", res)[0]
-		except:
-			self.tracking = 0
-		val = self.trackmodes[(self.tracking)%4]
-		if(v): print("    Machine tracking: %s" % val)
+		if(self.version[0] > 3):
+			res = self.cmdExec(self.cmdlist['get-tracking'])
+			try:
+				self.tracking = struct.unpack("B", res)[0]
+			except:
+				self.tracking = 0
+			val = self.trackmodes[(self.tracking)%4]
+			if(v): print("    Machine tracking: %s" % val)
 
 		self.getAltAzi()
 		if(v):
@@ -193,15 +191,19 @@ class Celestron:
 		return loc
 	def getAltAzi(self):
 		res = self.cmdExec(self.cmdlist['get-az-alt32'])
-		m = re.match('^(?P<alt>[0-9,A-F]{8}),(?P<azi>[0-9,A-F]{8})$', res)
+		m = re.match('^(?P<azi>[0-9,A-F]{8}),(?P<alt>[0-9,A-F]{8})$', res)
 		if(not m):
-			doError("Invalid Altitude/Azimuth data from telescope", False)
+			print("Invalid Altitude/Azimuth data from telescope")
+			return
+			#doError("Invalid Altitude/Azimuth data from telescope", False)
 		self.altitude = (float(int(m.group("alt"), 16)) / 0x100000000) * 360.0
 		self.azimuth = (float(int(m.group("azi"), 16)) / 0x100000000) * 360.0
 	def gotoAltAzi(self, alt, azi):
+		print("  Current Altitude: %.2f deg" % self.altitude)
+		print("   Current Azimuth: %.2f deg" % self.azimuth)
 		hexalt = int((alt / 360) * 0x100000000)
 		hexazi = int((azi / 360) * 0x100000000)
-		cmd = "b%08x,%08x" % (hexalt, hexazi)
+		cmd = "b%08X,%08X" % (hexazi, hexalt)
 		res = self.cmdExec(cmd)
 		if(self.wait):
 			self.moving = True
@@ -215,6 +217,26 @@ class Celestron:
 				if(res == "0"):
 					self.moving = False
 					print msg
+	def setTracking(self, alt, azi):
+		altdir = azidir = 6
+		altrate = int(alt * 4)
+		azirate = int(azi * 4)
+		if(alt < 0):
+			altdir = 7
+			altrate = -altrate
+		if(azi < 0):
+			azidir = 7
+			azirate = -azirate
+		althi = (altrate >> 8) & 0xff
+		altlo = altrate & 0xff
+		azihi = (azirate >> 8) & 0xff
+		azilo = azirate & 0xff
+		print("Altitude tracking at %.2f arcsec/sec" % (float(int(alt*4))/4))
+		print(" Azimuth tracking at %.2f arcsec/sec" % (float(int(azi*4))/4))
+		altcmd = struct.pack("cBBBBBBB", 'P', 3, 17, altdir, althi, altlo, 0, 0)
+		azicmd = struct.pack("cBBBBBBB", 'P', 3, 16, azidir, azihi, azilo, 0, 0)
+		self.cmdExec(altcmd)
+		self.cmdExec(azicmd)
 	def cmdName(self, cmd):
 		for name in self.cmdlist:
 			fmt = self.cmdlist[name]
@@ -251,6 +273,7 @@ def printHelp():
 	print("  -cancel          Cancel a goto move, but leave tracking")
 	print("  -stop            Completely stop the telescope")
 	print("  -altazi alt azi  Goto altitude azimuth")
+	print("  -track alt azi   Set tracking rates for alt-azi in arcsec/sec (15 is earth rotation)")
 	print("")
 	return True
 
@@ -280,6 +303,16 @@ for arg in args:
  	elif(arg == "-status"):
 		celestron.status(True)
 		sys.exit()
+	elif(arg == "-track"):
+		try: altrate = args.next()
+		except: doError("No altitude rate supplied", True)
+		try: altrate = float(altrate)
+		except:	doError("Bad altitude rate, what the hell is this? [%s]" % altrate, False)
+		try: azirate = args.next()
+		except: doError("No azimuth rate supplied", True)
+		try: azirate = float(azirate)
+		except: doError("Bad azimuth rate, what the hell is this? [%s]" % azirate, False)
+		cmd = ["track", altrate, azirate]
  	elif(arg == "-init"):
 		celestron.initControl()
 		sys.exit()
@@ -309,8 +342,8 @@ for arg in args:
 		except: doError("No azimuth supplied", True)
 		try: azi = float(azi)
 		except: doError("Bad azimuth, what the hell is this? [%s]" % azi, False)
-		if(alt < 0 or alt > 180):
-			doError("Altitude %.2f is not between 0 and 180" % alt, False)
+		if(alt < 0 or alt >= 360):
+			doError("Altitude %.2f is not between 0 and 360" % alt, False)
 		if(azi < 0 or azi >= 360):
 			doError("Azimuth %.2f is not between 0 and 360" % azi, False)
 		cmd = ["altazi", alt, azi]
@@ -323,3 +356,5 @@ if(cmd):
 		doError("Connection off-line", False)
 	if(cmd[0] == "altazi"):
 		celestron.gotoAltAzi(cmd[1], cmd[2])
+	elif(cmd[0] == "track"):
+		celestron.setTracking(cmd[1], cmd[2])
