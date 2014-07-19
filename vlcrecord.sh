@@ -1,6 +1,6 @@
 #!/bin/sh
 
-URL="http://192.168.1.6:8090/?action=stream"
+URL="http://192.168.1.8:8090/?action=stream"
 OUTPATH="$HOME/Videos"
 PIDFILE="$HOME/Videos/vlcrecord.pid"
 

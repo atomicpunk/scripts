@@ -237,6 +237,13 @@ class Celestron:
 		azicmd = struct.pack("cBBBBBBB", 'P', 3, 16, azidir, azihi, azilo, 0, 0)
 		self.cmdExec(altcmd)
 		self.cmdExec(azicmd)
+	def wobble(self, azi1, azi2):
+		azi = [azi1, azi2]
+		i = 0
+		while True:
+			self.setTracking(0, azi[i])
+			i = (i + 1)%2
+			time.sleep(10)
 	def cmdName(self, cmd):
 		for name in self.cmdlist:
 			fmt = self.cmdlist[name]
@@ -333,6 +340,16 @@ for arg in args:
 		else:
 			doError("Connection off-line", False)
 		sys.exit()
+	elif(arg == "-wobble"):
+		try: val1 = args.next()
+		except: doError("No val1 supplied", True)
+		try: val1 = float(val1)
+		except:	doError("Bad val, what the hell is this? [%s]" % val1, False)
+		try: val2 = args.next()
+		except: doError("No val2 supplied", True)
+		try: val2 = float(val2)
+		except:	doError("Bad val, what the hell is this? [%s]" % val2, False)
+		cmd = ["wobble", val1, val2]
 	elif(arg == "-altazi"):
 		try: alt = args.next()
 		except: doError("No altitude supplied", True)
@@ -358,3 +375,5 @@ if(cmd):
 		celestron.gotoAltAzi(cmd[1], cmd[2])
 	elif(cmd[0] == "track"):
 		celestron.setTracking(cmd[1], cmd[2])
+	elif(cmd[0] == "wobble"):
+		celestron.wobble(cmd[1], cmd[2])
