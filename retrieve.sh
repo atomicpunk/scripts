@@ -1,7 +1,8 @@
 #!/bin/sh
 
 ADDR="192.168.1.7"
-FOLDERS="closeup garden"
+#FOLDERS="closeup garden"
+FOLDERS="closeup"
 
 for folder in $FOLDERS; do
 	REMOTE=`ssh -X $ADDR "cd Pictures/$folder ; ls -1 $folder-??????-??????.jpg"`
@@ -30,7 +31,6 @@ for folder in $FOLDERS; do
 	NAME=$folder
 	if [ $folder = "closeup" ]; then
 		NAME="cucumbers"
-		continue
 	fi
 	movie.sh -t ${NAME}-1day-per-sec -m hourly
 	movie.sh -t ${NAME}-12hours-per-sec -m 30min

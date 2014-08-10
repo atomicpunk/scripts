@@ -28,7 +28,8 @@ MP4NAME="out.mp4"
 TITLE="timelapse"
 MODE="all"
 SLOW="1.0"
-HOUR=12
+HOUR=""
+DATE=""
 PREFIX=`pwd | sed "s/.*\///"`
 
 stampMetadata() {
@@ -77,31 +78,45 @@ setup() {
 		rm $MP4NAME
 	fi
 	if [ -d $TMPDIR ]; then
-		rm -r $TMPDIR
+		rm -rf $TMPDIR/*
+	else
+		mkdir $TMPDIR
 	fi
-	mkdir $TMPDIR
 }
 
 finish() {
 	if [ -d $TMPDIR ]; then
-		rm -r $TMPDIR
+		rm -r $TMPDIR/*
 	fi
 }
 
+copyFrame() {
+	FILE=$1
+	IDX=$2
+	M=`echo $FILE | cut -c1-2`
+	D=`echo $FILE | cut -c3-4`
+	Y=`echo $FILE | cut -c5-6`
+	H=`echo $FILE | cut -c23-24`
+	I=`echo $FILE | cut -c25-26`
+	TIME=`date -d "$Y$M$D $H:$I" "+%b %d  %H:%M"`
+	echo "$IDX: $FILE"
+	convert -font Arial-Regular -pointsize 40 -fill white -draw "text 10,1070\"$TIME\"" $FILE $TMPDIR/image${IDX}.jpg
+}
+
 list10min() {
-	DIRS=`ls -1d ??????`
+	DIRS="$DATE"
+	if [ -z "$DATE" ]; then
+		DIRS=`ls -1d ??????`
+	fi
 	COUNT=0
 	for dir in $DIRS; do
-		if [ ! -d $dir ]; then
-			continue
-		fi
+		if [ ! -d $dir ]; then continue; fi
 		for i in `seq -f "%02.0f" 0 23`; do
 			for j in `seq 0 5`; do
 				FILE=`ls -1 $dir/${PREFIX}-$dir-${i}${j}???.jpg 2>/dev/null | head -1`
 				if [ -n "$FILE" ]; then
-					IDX=`seq -f "%04.0f" $COUNT $COUNT`
-					echo "$IDX: $FILE"
-					cp $FILE $TMPDIR/image${IDX}.jpg
+					IDX=`seq -f "%05.0f" $COUNT $COUNT`
+					copyFrame $FILE $IDX
 					COUNT=`expr $COUNT + 1`
 				fi
 			done
@@ -110,19 +125,19 @@ list10min() {
 }
 
 list30min() {
-	DIRS=`ls -1d ??????`
+	DIRS="$DATE"
+	if [ -z "$DATE" ]; then
+		DIRS=`ls -1d ??????`
+	fi
 	COUNT=0
 	for dir in $DIRS; do
-		if [ ! -d $dir ]; then
-			continue
-		fi
+		if [ ! -d $dir ]; then continue; fi
 		for i in `seq -f "%02.0f" 0 23`; do
 			for j in `seq 0 3 3`; do
 				FILE=`ls -1 $dir/${PREFIX}-$dir-${i}${j}???.jpg 2>/dev/null | head -1`
 				if [ -n "$FILE" ]; then
-					IDX=`seq -f "%04.0f" $COUNT $COUNT`
-					echo "$IDX: $FILE"
-					cp $FILE $TMPDIR/image${IDX}.jpg
+					IDX=`seq -f "%05.0f" $COUNT $COUNT`
+					copyFrame $FILE $IDX
 					COUNT=`expr $COUNT + 1`
 				fi
 			done
@@ -131,18 +146,18 @@ list30min() {
 }
 
 listHourly() {
-	DIRS=`ls -1d ??????`
+	DIRS="$DATE"
+	if [ -z "$DATE" ]; then
+		DIRS=`ls -1d ??????`
+	fi
 	COUNT=0
 	for dir in $DIRS; do
-		if [ ! -d $dir ]; then
-			continue
-		fi
+		if [ ! -d $dir ]; then continue; fi
 		for i in `seq -f "%02.0f" 0 23`; do
 			FILE=`ls -1 $dir/${PREFIX}-$dir-${i}0???.jpg 2>/dev/null | head -1`
 			if [ -n "$FILE" ]; then
-				IDX=`seq -f "%04.0f" $COUNT $COUNT`
-				echo "$IDX: $FILE"
-				cp $FILE $TMPDIR/image${IDX}.jpg
+				IDX=`seq -f "%05.0f" $COUNT $COUNT`
+				copyFrame $FILE $IDX
 				COUNT=`expr $COUNT + 1`
 			fi
 		done
@@ -150,29 +165,35 @@ listHourly() {
 }
 
 listDaily() {
-	DIRS=`ls -1d ??????`
+	DIRS="$DATE"
+	if [ -z "$DATE" ]; then
+		DIRS=`ls -1d ??????`
+	fi
 	COUNT=0
 	for dir in $DIRS; do
-		if [ ! -d $dir ]; then
-			continue
-		fi
+		if [ ! -d $dir ]; then continue; fi
 		FILE=`ls -1 $dir/${PREFIX}-$dir-${HOUR}0???.jpg 2>/dev/null | head -1`
 		if [ -n "$FILE" ]; then
-			IDX=`seq -f "%04.0f" $COUNT $COUNT`
-			echo "$IDX: $FILE"
-			cp $FILE $TMPDIR/image${IDX}.jpg
+			IDX=`seq -f "%05.0f" $COUNT $COUNT`
+			copyFrame $FILE $IDX
 			COUNT=`expr $COUNT + 1`
 		fi
 	done
 }
 
 listAll() {
+	DIRS="$DATE"
+	if [ -z "$DATE" ]; then
+		DIRS=`ls -1d ??????`
+	fi
 	COUNT=0
-	for file in `find . -name ${PREFIX}-??????-??????.jpg | sort`; do
-		IDX=`seq -f "%04.0f" $COUNT $COUNT`
-		echo "$IDX: $file"
-		cp $file $TMPDIR/image${IDX}.jpg
-		COUNT=`expr $COUNT + 1`
+	for dir in $DIRS; do
+		if [ ! -d $dir ]; then continue; fi
+		for file in `ls -1 $dir/${PREFIX}-$dir-??????.jpg 2>/dev/null`; do
+			IDX=`seq -f "%05.0f" $COUNT $COUNT`
+			copyFrame $FILE $IDX
+			COUNT=`expr $COUNT + 1`
+		done
 	done
 }
 
@@ -180,10 +201,10 @@ generate() {
 	echo "Creating $TITLE..."
 	case "$SLOW" in
 		1.0)
-			avconv -i $TMPDIR/image%04d.jpg -c:v libx264 -r 24 $MP4NAME
+			avconv -i $TMPDIR/image%05d.jpg -c:v libx264 -r 24 $MP4NAME
 		;;
 		*)
-			avconv -i $TMPDIR/image%04d.jpg -c:v libx264 -r 24 -vf "setpts=${SLOW}*PTS" $MP4NAME
+			avconv -i $TMPDIR/image%05d.jpg -c:v libx264 -r 24 -vf "setpts=${SLOW}*PTS" $MP4NAME
 		;;
 	esac
 	stampMetadata "$MP4NAME"
@@ -239,17 +260,22 @@ while [ "$1" ] ; do
 		-m)
 			shift
 			if [ ! "$1" ]; then onError "-m: missing argument"; fi
-			MODE=$1
+			MODE="$1"
 		;;
 		-s)
 			shift
 			if [ ! "$1" ]; then onError "-s: missing argument"; fi
-			SLOW=$1
+			SLOW="$1"
 		;;
 		-h)
 			shift
 			if [ ! "$1" ]; then onError "-h: missing argument"; fi
-			HOUR=$1
+			HOUR="$1"
+		;;
+		-d)
+			shift
+			if [ ! "$1" ]; then onError "-d: missing argument"; fi
+			DATE="$1"
 		;;
 		*)
 			onError "Invalid argument ($1)"
@@ -273,6 +299,7 @@ case "$MODE" in
 		listHourly
 	;;
 	daily)
+		if [ -z "$HOUR" ]; then onError "daily: -h is required"; fi
 		listDaily
 	;;
 	*)
