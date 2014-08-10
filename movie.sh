@@ -78,7 +78,7 @@ setup() {
 		rm $MP4NAME
 	fi
 	if [ -d $TMPDIR ]; then
-		rm -rf $TMPDIR/*
+		rm -f $TMPDIR/*
 	else
 		mkdir $TMPDIR
 	fi
@@ -98,8 +98,8 @@ copyFrame() {
 	Y=`echo $FILE | cut -c5-6`
 	H=`echo $FILE | cut -c23-24`
 	I=`echo $FILE | cut -c25-26`
-	TIME=`date -d "$Y$M$D $H:$I" "+%b %d  %H:%M"`
 	echo "$IDX: $FILE"
+	TIME=`date -d "$Y$M$D $H:$I" "+%b %d  %H:%M"`
 	convert -font Arial-Regular -pointsize 40 -fill white -draw "text 10,1070\"$TIME\"" $FILE $TMPDIR/image${IDX}.jpg
 }
 
@@ -191,7 +191,7 @@ listAll() {
 		if [ ! -d $dir ]; then continue; fi
 		for file in `ls -1 $dir/${PREFIX}-$dir-??????.jpg 2>/dev/null`; do
 			IDX=`seq -f "%05.0f" $COUNT $COUNT`
-			copyFrame $FILE $IDX
+			copyFrame $file $IDX
 			COUNT=`expr $COUNT + 1`
 		done
 	done
@@ -307,4 +307,4 @@ case "$MODE" in
 	;;
 esac
 generate
-finish
+#finish
