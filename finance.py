@@ -32,7 +32,7 @@ from datetime import datetime
 import ystockquote
 
 # scottrade or other transaction data file in CSV format
-datafile = os.environ['HOME']+'/Transactions.2014.08.27.19.01.13.csv'
+datafile = os.environ['HOME']+'/mystocktransactions.csv'
 target = ''
 verbose = False
 
