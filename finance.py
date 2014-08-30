@@ -32,7 +32,6 @@ from datetime import datetime
 import ystockquote
 
 # scottrade or other transaction data file in CSV format
-datafile = os.environ['HOME']+'/mystocktransactions.csv'
 target = ''
 verbose = False
 
@@ -67,7 +66,7 @@ class Portfolio:
 			stock.value += t.amount
 		if t.action == 'Buy':
 			stock.cost -= t.amount
-	def getPrices(self):
+	def getStockPrices(self):
 		for s in self.stocklist:
 			stock = self.stocklist[s]
 			if s == 'Cash' or stock.quantity == 0.0:
@@ -175,7 +174,7 @@ class Transaction:
 			'$%.2f' % (self.comm)
 			))
 
-def parseDataFile(file):
+def parseStockTransactions(file):
 	global verbose, target
 	count = 0
 	list = dict()
@@ -247,6 +246,7 @@ if __name__ == '__main__':
 		else:
 			doError('Invalid argument: '+arg, True)
 
-	parseDataFile(datafile)
-	portfolio.getPrices()
+	home = os.environ['HOME']+'/.finance/'
+	parseStockTransactions(home+'mystocktransactions.csv')
+	portfolio.getStockPrices()
 	portfolio.show()
