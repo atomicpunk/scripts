@@ -37,12 +37,18 @@ verbose = False
 
 class Stock:
 	name = ''
+	date = 0
+	iprice = 0.0
 	cost = 0.0
 	value = 0.0
 	price = 0.0
 	quantity = 0.0
-	def __init__(self, sym):
+	ownedfor = 0.0
+	def __init__(self, sym, d, ip):
 		self.name = sym
+		self.date = d
+		self.ownedfor = float((datetime.now()-d).days) / 365.25
+		self.iprice = ip
 	def getPrice(self):
 		global verbose
 		if self.name == 'Cash':
@@ -55,10 +61,11 @@ class Stock:
 			print("PRICE RCV: %s $%.2f" % (self.name, self.price))
 
 class Portfolio:
+	networth = 0.0
 	stocklist = dict()
-	def transaction(self, t):
+	def stockTransaction(self, t):
 		if t.symbol not in self.stocklist:
-			self.stocklist[t.symbol] = Stock(t.symbol)
+			self.stocklist[t.symbol] = Stock(t.symbol, t.date, t.price)
 		stock = self.stocklist[t.symbol]
 		if t.action in ['Dividend Reinvest', 'Buy', 'Sell']:
 			stock.quantity += t.quantity
@@ -96,9 +103,10 @@ class Portfolio:
 			('$%.2f'%cost, '$%.2f'%value, 100.0*value/cost))
 		print('')
 		print(' CURRENT INVESTMENTS')
-		print('----------------------------------------------------------------')
-		print(' NAME      QTY  PRICE        COST      VALUE     PROFIT  RETURN')
-		print('----------------------------------------------------------------')
+		div = '-----------------------------------------------------------------------------------------------------'
+		print div
+		print(' NAME       PDATE      AGE      QTY   PRICE       COST      VALUE     PROFIT  RETURN  AVGRET  CHANGE')
+		print div
 		profit = cost = value = 0.0
 		for s in self.stocklist:
 			stock = self.stocklist[s]
@@ -106,21 +114,29 @@ class Portfolio:
 				continue
 			v = stock.quantity*stock.price
 			p = (stock.quantity*stock.price)-stock.cost
-			print("%5s %8.3f %7s %10s %10s %10s %6.2f%%" % \
-				(s, stock.quantity,
+			ret = 100.0*((v/stock.cost)-1)
+			avgret = ret/stock.ownedfor
+			change = 100.0*((stock.price/stock.iprice)-1)
+			print("%5s  %10s %5s %8.3f %7s %10s %10s %10s %6.2f%% %6.2f%% %6.2f%%" % \
+				(s, stock.date.date(),
+				'%.2f yrs'%stock.ownedfor,
+				stock.quantity,
 				'$%.2f'%stock.price,
 				'$%.2f'%stock.cost,
 				'$%.2f'%(stock.quantity*stock.price),
 				'$%.2f'%((stock.quantity*stock.price)-stock.cost),
-				100.0*((v/stock.cost)-1),
+				ret,
+				avgret,
+				change,
 				))
 			value += v
 			profit += p
 			cost += stock.cost
-		print('---------------------------------------------------------------')
-		print("TOTAL                  %10s %10s %10s %6.2f%%" % \
+		print div
+		print("TOTAL                                       %10s %10s %10s %6.2f%%" % \
 			('$%.2f'%cost, '$%.2f'%value, '$%.2f'%profit, 100.0*((value/cost)-1)))
 		print('')
+		portfolio.networth += value
 
 portfolio = Portfolio()
 
@@ -192,7 +208,44 @@ def parseStockTransactions(file):
 		t = list[d]
 		if verbose:
 			t.show()
-		portfolio.transaction(t)
+		portfolio.stockTransaction(t)
+
+def parseBonds(file):
+	global verbose, target
+	fp = open(file, 'r')
+	value = 0.0
+	print('')
+	print(' SAVINGS BONDS')
+	print('-------------------------------------')
+	print('    SERIAL  DENOM    ISSUED    VALUE')
+	print('-------------------------------------')
+	for line in fp:
+		line = line.replace('\n', '')
+		f = line.split('\t')
+		value += float(f[3])
+		print('%s %6s  %8s %8s' % (f[0], f[1], f[2], f[3]))
+	print('-------------------------------------')
+	print('TOTAL                 %10s' % '$%.2f'%value)
+	portfolio.networth += value
+
+def parseOther(file):
+	global verbose, target
+	fp = open(file, 'r')
+	total = 0.0
+	print('')
+	print(' CASH & RETIREMENT')
+	print('-------------------------------------')
+	print('              SOURCE           VALUE')
+	print('-------------------------------------')
+	for line in fp:
+		line = line.replace('\n', '')
+		f = line.split('\t')
+		value = float(f[1])
+		total += value
+		print('%20s %15s' % (f[0], '$%.2f'%value))
+	print('-------------------------------------')
+	print('TOTAL                %10s' % '$%.2f'%total)
+	portfolio.networth += total
 
 # Function: printHelp
 # Description:
@@ -247,6 +300,11 @@ if __name__ == '__main__':
 			doError('Invalid argument: '+arg, True)
 
 	home = os.environ['HOME']+'/.finance/'
+	parseBonds(home+'bonds.txt')
+	parseOther(home+'other.txt')
 	parseStockTransactions(home+'mystocktransactions.csv')
 	portfolio.getStockPrices()
 	portfolio.show()
+
+	print("NET WORTH = $%.2f" % portfolio.networth)
+	print('')
