@@ -85,6 +85,66 @@ def setTag(indir, tagname, tagval):
 			meta.__setitem__(tag.key, tag)
 			meta.write()
 
+class ImageInfo:
+	model = ''
+	timestamp = ''
+	author = ''
+	size = ''
+	valid = True
+	def __init__(self, file):
+		meta = pyexiv2.metadata.ImageMetadata(file)
+		self.size = ''
+		try:
+			meta.read()
+		except:
+			self.model = ''
+			self.timestamp = ''
+			self.author = ''
+			self.size = ''
+			self.valid = False
+		try:
+			tag = meta.__getitem__('Exif.Image.Model')
+			self.model = tag.value
+		except:
+			self.model = ''
+		try:
+			tag = meta.__getitem__('Exif.Image.DateTime')
+			self.timestamp = tag.value
+		except:
+			self.timestamp = ''
+		try:
+			tag = meta.__getitem__('Exif.Image.Artist')
+			self.author = tag.value
+		except:
+			self.author = ''
+		try:
+			tag = meta.__getitem__('Exif.Photo.PixelXDimension')
+			width = tag.value
+		except:
+			width = 0
+		try:
+			tag = meta.__getitem__('Exif.Photo.PixelYDimension')
+			height = tag.value
+		except:
+			height = 0
+		if width or height:
+			self.size = "%d x %d" % (width, height)
+	def show(self):
+		if self.author or self.model or self.timestamp or self.size:
+			print("\t  Author: %s\n\t  Camera: %s\n\tDateTime: %s\n\t    Size: %s" % \
+				(self.author, self.model, self.timestamp, self.size))
+
+def getInfo(indir):
+	for dirname, dirnames, filenames in os.walk(indir):
+		for filename in sorted(filenames):
+			file = os.path.join(dirname, filename)
+			if not os.path.isfile(file):
+				continue
+			info = ImageInfo(file)
+			if(info.valid):
+				print file
+				info.show()
+
 def rotateImages(indir, outdir, amount):
 	valid = ['90', '180', '270']
 	if amount not in valid:
@@ -274,6 +334,7 @@ def printHelp():
 	print('   reset-<tag> : reset a tag value in all images (-i)')
 	print('               : <tag> = %s' % keys)
 	print('               : <tag> = Exif.* (read-only)')
+	print('   info      : print basic metadata for image files recursively (-i)')
 	print('   resize    : resize all images (-i,-o,-width,-height)')
 	print('   crop      : crop all images (-i,-o,-width,-height)')
 	print('   matches   : find the template in the images (-i,-temp)')
@@ -373,6 +434,9 @@ if __name__ == '__main__':
 	# rotate images by 90 degree multiplier
 	if(cmd.startswith('rotate')):
 		rotateImages(indir, outdir, cmd[6:])
+	# get tag value by name or nick
+	elif(cmd.startswith('info')):
+		getInfo(indir)
 	# get tag value by name or nick
 	elif(cmd.startswith('get-')):
 		tagname = cmd[4:]
