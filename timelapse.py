@@ -1,12 +1,8 @@
 #!/usr/bin/python
 
 #
-# Copyright 2012 Todd Brandt <tebrandt@frontier.com>
-#
-# This program is free software; you may redistribute it and/or modify it
-# under the same terms as Perl itself.
-#    utility to organize media collections
-#    Copyright (C) 2012 Todd Brandt <tebrandt@frontier.com>
+#    TimeLapse Maker - processing the images for a timelapse
+#    Copyright (C) 2014 Todd Brandt <tebrandt@frontier.com>
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -256,6 +252,8 @@ def createVideo(indir, outfile, slow):
 # Description:
 #	 print out the help text
 def printHelp():
+	keys = []
+	for tag in tagmap: keys.append(tag)
 	print('')
 	print('Timelapse Maker')
 	print('Usage: timelapse.py <options> command')
@@ -269,10 +267,13 @@ def printHelp():
 	print('   -temp <file>   Template image for matching')
 	print('   -width <int>   Image width')
 	print('   -height <int>  Image height')
-	print('   -slow <int>    slow amount for video')
-	print('   -title <val>   output title')
+	print('   -slow <int>    slow video by factor of N')
+	print('   -title <str>   output title')
 	print('Commands:')
-	print('   resetorientation : reset all images to landscape (-i, -o)')
+	print('   get-<tag>   : get a tag value in all images (-i)')
+	print('   reset-<tag> : reset a tag value in all images (-i)')
+	print('               : <tag> = %s' % keys)
+	print('               : <tag> = Exif.* (read-only)')
 	print('   resize    : resize all images (-i,-o,-width,-height)')
 	print('   crop      : crop all images (-i,-o,-width,-height)')
 	print('   matches   : find the template in the images (-i,-temp)')
@@ -320,6 +321,8 @@ def getArgStr(name, args):
 # ----------------- MAIN --------------------
 # exec start (skipped if script is loaded as library)
 if __name__ == '__main__':
+
+	# argument data
 	indir = '.'
 	outdir = '.'
 	imgwidth = 0
@@ -328,6 +331,7 @@ if __name__ == '__main__':
 	title=''
 	slow = 1
 	cmd = ''
+
 	# loop through the command line arguments
 	if len(sys.argv) < 2:
 		printHelp()
@@ -357,44 +361,54 @@ if __name__ == '__main__':
 			else:
 				doError('Invalid argument: '+arg, True)
 
-if not cmd:
-	doError('No command given', True)
-if not os.path.isdir(indir):
-	doError('Input folder not found - '+indir, True)
-if not os.path.isdir(outdir):
-	doError('Input folder not found - '+outdir, True)
+	# command and input/output check
+	if not cmd:
+		doError('No command given', True)
+	if not os.path.isdir(indir):
+		doError('Input folder not found - '+indir, True)
+	if not os.path.isdir(outdir):
+		doError('Input folder not found - '+outdir, True)
 
-if  (cmd.startswith('rotate')):
-	rotateImages(indir, outdir, cmd[6:])
-elif(cmd.startswith('get-')):
-	tagname = cmd[4:]
-	if tagname in tagmap:
-		getTag(indir, tagmap[tagname])
-	elif tagname.startswith('Exif.'):
-		getTag(indir, tagname)
+	# COMMAND PROCESSING
+	# rotate images by 90 degree multiplier
+	if(cmd.startswith('rotate')):
+		rotateImages(indir, outdir, cmd[6:])
+	# get tag value by name or nick
+	elif(cmd.startswith('get-')):
+		tagname = cmd[4:]
+		if tagname in tagmap:
+			getTag(indir, tagmap[tagname])
+		elif tagname.startswith('Exif.'):
+			getTag(indir, tagname)
+		else:
+			doError('Unknown image property/tag - '+tagname, True)
+	# reset tag value by nick
+	elif(cmd.startswith('reset-')):
+		tagname = cmd[6:]
+		if tagname in tagmap:
+			setTag(indir, tagmap[tagname], tagdef[tagname])
+		else:
+			doError('Unknown image property/tag - '+tagname, True)
+	# resize images by height or width multipler
+	elif(cmd == 'resize'):
+		if not imgwidth and not imgheight:
+			doError('No width or height supplied', True)
+		resizeImages(indir, outdir, imgwidth, imgheight)
+	# crop images to new height and/or width
+	elif(cmd == 'crop'):
+		if not imgwidth and not imgheight:
+			doError('No width or height supplied', True)
+		cropImages(indir, outdir, imgwidth, imgheight)
+	# matches for the given template in all the images (GUI)
+	elif(cmd == 'matches'):
+		print findMatches(indir, tfile)
+	# resize/crop all images using the template match as anchor
+	elif(cmd == 'align'):
+		print cropImageByMatch(indir, outdir, tfile)
+	# create the timelapse video
+	elif(cmd == 'video'):
+		if not title:
+			title = 'output.mp4'
+		createVideo(indir, title, slow)
 	else:
-		doError('Unknown image property/tag - '+tagname, True)
-elif(cmd.startswith('reset-')):
-	tagname = cmd[6:]
-	if tagname in tagmap:
-		setTag(indir, tagmap[tagname], tagdef[tagname])
-	else:
-		doError('Unknown image property/tag - '+tagname, True)
-elif(cmd == 'resize'):
-	if not imgwidth and not imgheight:
-		doError('No width or height supplied', True)
-	resizeImages(indir, outdir, imgwidth, imgheight)
-elif(cmd == 'crop'):
-	if not imgwidth and not imgheight:
-		doError('No width or height supplied', True)
-	cropImages(indir, outdir, imgwidth, imgheight)
-elif(cmd == 'matches'):
-	print findMatches(indir, tfile)
-elif(cmd == 'align'):
-	print cropImageByMatch(indir, outdir, tfile)
-elif(cmd == 'video'):
-	if not title:
-		title = 'output.mp4'
-	createVideo(indir, title, slow)
-else:
-	doError('Invalid command: '+cmd, True)
+		doError('Invalid command: '+cmd, True)
