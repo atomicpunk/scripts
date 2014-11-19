@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+# Copyright 2012 Todd Brandt <tebrandt@frontier.com>
+#
+# This program is free software; you may redistribute it and/or modify it
+# under the same terms as Perl itself.
+#    utility to organize media collections
+#    Copyright (C) 2012 Todd Brandt <tebrandt@frontier.com>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+URL1="http://192.168.1.4:8090/?action=stream"
+URL2="http://192.168.1.4:8091/?action=stream"
+URLS="$URL1 $URL2"
+
+printHelp() {
+	echo ""
+	echo "Office - view the office webcams"
+	echo "USAGE: office <stop>"
+	echo ""
+	exit
+}
+
+isRunning() {
+	PID=`ps -C vlc --no-headers -o pid,args | grep $1 | head -1 | awk '{print $1}'`
+	return $PID
+}
+
+on_start() {
+	for u in $URLS
+	do
+		isRunning $u
+		if [ $? -eq 0 ]; then
+			vlc --no-audio $u > /dev/null 2>&1 &
+			PID=$!
+			echo "Starting $PID : $u"
+		fi
+	done
+}
+
+on_stop() {
+	for u in $URLS
+	do
+		isRunning $u
+		PID=$?
+		if [ $PID -ne 0 ]; then
+			echo "Killing $PID"
+			kill -9 $PID
+		fi
+	done
+}
+
+if [ $# -gt 1 ]; then
+	printHelp
+elif [ $# -eq 0 ]; then
+	on_start
+elif [ $# -eq 1 -a $1 = "stop" ]; then
+	on_stop
+else
+	printHelp
+fi
