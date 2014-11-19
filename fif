@@ -1,79 +1,120 @@
-#!/bin/bash
-# Author: Joe Grossberg
-# Author's Site: http://www.joegrossberg.com/archives/000386.html
-# Contributer Todd Brandt <tebrandt@frontier.com>
+#!/usr/bin/python
 
-if [ $# -lt 1 -o "$1" = "--help" ]; then
-	echo "";
-        echo "Usage: fif <string> <directory or option>";
-        echo "Recursively searches all files in <directory> for <string>";
-	echo "";
-	echo "<option> = (nil): get list of files/lines containing <string>";
-	echo "<option> = -1: get list of files containing <string>";
-	echo "<option> = -w: get list of files/lines containing <string> (whole word)";
-	echo "<option> = -1w: get list of files containing <string> (whole word)";
-	echo "<option> = -f: get list of files/lines using <string> as pattern file";
-	echo "<option> = -f1: get list of files using <string> as pattern file";
-	echo "<option> = -fw: get list of files/lines using <string> as pattern file (whole word)";
-	echo "<option> = -f1w: get list of files using <string> as pattern file (whole word)";
-	echo "";
- 
-else # run the command
- 
-    if [ "$2" = "" ]; then
-        directory=(".");
-    else
-        directory=$2;
-    fi
- 
-    if [ "$2" = "-f1" ]; then
+#
+# Copyright 2012 Todd Brandt <tebrandt@frontier.com>
+#
+# This program is free software; you may redistribute it and/or modify it
+# under the same terms as Perl itself.
+#    utility to organize media collections
+#    Copyright (C) 2012 Todd Brandt <tebrandt@frontier.com>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
 
-        pushd "." > /dev/null;
-        fgrep -rl --file="$1" *;
+import sys
+import os
+import shutil
+import string
+import re
 
-    elif [ "$2" = "-fw" ]; then
+def isValid(filename):
+	exlist = ['.git']
+	dirs = filename.split('/')
+	for ex in exlist:
+		if ex in dirs:
+			return False
+	return True
 
-        pushd "." > /dev/null;
-        fgrep -wrn --file="$1" * | colorGrepOutput.pl;
+def findInFiles(sstring, filemask, options):
+	cmd = 'egrep '+options+' -srn --include "'+filemask+'" "'+sstring+'"'
+	res = os.popen(cmd).read().strip()
+	for line in res.split('\n'):
+		m = re.match('^(?P<f>[^:]*)(:)(?P<n>[^:]*)(:)(?P<l>.*)', line)
+		if not m:
+			continue
+		file = m.group('f')
+		linenum = m.group('n')
+		data = m.group('l')
+		if isValid(file):
+			print('\033[1;34m%s\033[0m:\033[1;36m%s\033[0m:%s' % \
+				(file, linenum, data))
 
-    elif [ "$2" = "-f1w" ]; then
+# Function: printHelp
+# Description:
+#	 print out the help text
+def printHelp():
+	print('')
+	print('Find in Files')
+	print('Usage: fif <string> [-f filemask]')
+	print('')
+	print('Description:')
+	print('  Find search string(s) in files recursively')
+	print('Options:')
+	print('  -h              Print this help text')
+	print('  -f <filemask>   File mask for which files to search (e.g. *.c)')
+	print('  -w              Whole word match')
+	print('')
+	return True
 
-        pushd "." > /dev/null;
-        fgrep -wrl --file="$1" *;
+# Function: doError
+# Description:
+#    generic error function for catastrphic failures
+# Arguments:
+#    msg: the error message to print
+#    help: True if printHelp should be called after, False otherwise
+def doError(msg, help):
+	if(help == True):
+		printHelp()
+	print('ERROR: %s\n') % msg
+	sys.exit()
 
-    elif [ "$2" = "-f" ]; then
+# ----------------- MAIN --------------------
+# exec start (skipped if script is loaded as library)
+if __name__ == '__main__':
+	alist = ['-h', '-f']
+	filemask = '*'
+	sstring = ''
+	options = ''
 
-        pushd "." > /dev/null;
-        fgrep -rn --file="$1" * | colorGrepOutput.pl;
+	if len(sys.argv) < 2:
+		printHelp()
+		sys.exit()
 
-    elif [ "$2" = "-1" ]; then
+	if sys.argv[1] in alist:
+		args = iter(sys.argv[1:])
+	else:
+		sstring = sys.argv[1]
+		args = iter(sys.argv[2:])
 
-        pushd "." > /dev/null;
-        egrep -rl "$1" *;
+	# loop through the command line arguments
+	for arg in args:
+		if(arg == '-h'):
+			printHelp()
+			sys.exit()
+		elif(arg == '-w'):
+			options = '-w'
+		elif(arg == '-f'):
+			try:
+				val = args.next()
+			except:
+				doError('No file mask supplied', True)
+			filemask = val
+		else:
+			doError('Invalid argument: '+arg, True)
 
-    elif [ "$2" = "-w" ]; then
+	if not sstring:
+		doError('No search string supplied', True)
 
-        pushd "." > /dev/null;
-        egrep -wrn "$1" * | colorGrepOutput.pl;
-
-    elif [ "$2" = "-1w" ]; then
-
-        pushd "." > /dev/null;
-        egrep -wrl "$1" *;
-
-    elif [ "$2" = "-p" ]; then
-
-        pushd "." > /dev/null;
-        egrep -srn "$1" *;
-
-    else
-
-        pushd $directory > /dev/null;
-        egrep -srn "$1" * | colorGrepOutput.pl;
-
-    fi
-
-    popd > /dev/null;
- 
-fi
-
+	findInFiles(sstring, filemask, options)
