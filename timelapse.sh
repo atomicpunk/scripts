@@ -24,49 +24,68 @@
 
 getConfig() {
 	HOUR=`date +"%H"`
-	if [ $HOUR -lt 7 -o $HOUR -gt 16 ]; then
-		# night
-		CONFIG="night"
+	if [ $1 = "night" ]; then
 		EXPMODE="Manual Mode"
 		EXPVAL="2047"
 		EXPAUTOPRI="False"
 		BRIGHTNESS="160"
-	else
-		# day
-		CONFIG="day"
+	elif [ $1 = "day" ]; then
 		EXPMODE="Aperture Priority Mode"
-		EXPVAL="0"
+		EXPVAL="2047"
 		EXPAUTOPRI="True"
 		BRIGHTNESS="128"
 	fi
+	RESOLUTION="1920x1080"
+	DEVICE="/dev/video0"
+	FOCUS=0
+	D=`date "+%m%d%y"`
+	T=`date "+%H%M%S"`
+	OUTDIR="/home/tebrandt/Pictures/roof/${D}"
+	OUTFILE="roof-${D}-${T}.jpg"
+	LATEST="/home/tebrandt/Pictures/roof/latest.jpg"
+	mkdir -p $OUTDIR
 }
 
-RESOLUTION="1920x1080"
-DEVICE="/dev/video0"
-FOCUS=0
-D=`date "+%m%d%y"`
-T=`date "+%H%M%S"`
-OUTDIR="/home/tebrandt/Pictures/roof/${D}"
-OUTFILE="roof-${D}-${T}.jpg"
-LATEST="/home/tebrandt/Pictures/roof/latest.jpg"
+doDirect() {
+	getConfig $1
+	echo "Configuration           : $COMMAND"
+	echo "Filename                : $OUTFILE"
+	echo "Brightness              : $BRIGHTNESS"
+	echo "Exposure, Auto          : $EXPMODE"
+	echo "Exposure (Absolute)     : $EXPVAL"
+	echo "Exposure, Auto Priority : $EXPAUTOPRI"
+	echo "Focus (absolute)        : $FOCUS"
 
-getConfig
+	fswebcam -d $DEVICE -i 0 -r $RESOLUTION --no-banner \
+	-s "Exposure, Auto=$EXPMODE" \
+	-s "Exposure (Absolute)=$EXPVAL" \
+	-s "Exposure, Auto Priority=$EXPAUTOPRI" \
+	-s "Focus, Auto=False" \
+	-s "Focus (absolute)=$FOCUS" \
+	-s "Brightness=$BRIGHTNESS" \
+	$OUTDIR/$OUTFILE
+	cp -f $OUTDIR/$OUTFILE $LATEST
+}
 
-echo "Configuration           : $CONFIG"
-echo "Filename                : $OUTFILE"
-echo "Brightness              : $BRIGHTNESS"
-echo "Exposure, Auto          : $EXPMODE"
-echo "Exposure (Absolute)     : $EXPVAL"
-echo "Exposure, Auto Priority : $EXPAUTOPRI"
-echo "Focus (absolute)        : $FOCUS"
+doVLC() {
+	while [ 1 ]; do
+		getConfig $1
+		shutter --min_at_startup --disable_systray -e -n -w video0 -o $OUTDIR/$OUTFILE
+		cp -f $OUTDIR/$OUTFILE $LATEST
+		sleep 1
+	done
+}
 
-mkdir -p $OUTDIR
-fswebcam -d $DEVICE -r $RESOLUTION --no-banner \
--s "Focus, Auto=False" \
--s "Focus (absolute)=$FOCUS" \
--s "Exposure, Auto=$EXPMODE" \
--s "Exposure (Absolute)=$EXPVAL" \
--s "Exposure, Auto Priority=$EXPAUTOPRI" \
--s "Brightness=$BRIGHTNESS" \
-$OUTDIR/$OUTFILE
-cp -f $OUTDIR/$OUTFILE $LATEST
+COMMAND="day"
+if [ $# -ge 1 ]; then
+	COMMAND=$1
+fi
+
+if [ "$COMMAND" = "night" -o "$COMMAND" = "day" ]; then
+	doDirect $COMMAND
+elif [ "$COMMAND" = "vlc" ]; then
+	doVLC $COMMAND
+else
+	echo "ERROR: Invalid command ($COMMAND)"
+	exit
+fi
