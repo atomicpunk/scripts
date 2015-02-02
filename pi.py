@@ -45,38 +45,56 @@ def doError(msg, help):
 	sys.exit()
 
 def printHelp():
-	print('Usage: pi.py <options>')
+	print('\nUsage: pi.py <options>')
 	print('Description:')
-	print('  Calculate PI forever in dec, hex, oct, or bin')
+	print('  Calculate PI forever in any base from bin to hex')
 	print('Options:')
-	print('  -h      Print this help text')
-	print('  -dec    Decimal (default)')
-	print('  -hex    Hexadecimal')
-	print('  -oct    Octal')
-	print('  -bin    Binary')
-	print('  -sep N  Include a separator every N lines with a count')
+	print('  -h        Print this help text')
+	print('  -base 10  Decimal (default)')
+	print('  -base 16  Hexadecimal')
+	print('  -base 8   Octal')
+	print('  -base 2   Binary')
+	print('  -base N   2 <= N <= 16')
+	print('  -sep N    Include a separator every N lines with a count')
+	print('  -cnt      Include a digit count after every line\n')
 
 if __name__ == '__main__':
+	basename = {
+		2: 'Binary',
+		8: 'Octal',
+		10: 'Decimal',
+		16: 'Hexadecimal'
+	}
 	args = iter(sys.argv[1:])
 	base = 10
 	fmt = '{:1d}'
 	sep = 0
+	cnt = False
 	for arg in args:
 		if(arg == '-h'):
 			printHelp()
 			sys.exit()
-		elif(arg == '-hex'):
-			base = 16
-			fmt = '{:1X}'
-		elif(arg == '-dec'):
-			base = 10
-			fmt = '{:1d}'
-		elif(arg == '-oct'):
-			base = 8
-			fmt = '{:1o}'
-		elif(arg == '-bin'):
-			base = 2
-			fmt = '{:1b}'
+		elif(arg == '-base'):
+			try:
+				val = args.next()
+			except:
+				doError('No base number supplied', True)
+			try:
+				base = int(val)
+			except:
+				doError('This isnt an integer: %s' % val, True)
+			if base < 2 or base > 16:
+				doError('The base must be between 2 and 16', True)
+			if base > 10:
+				fmt = '{:1X}'
+			elif base > 8:
+				fmt = '{:1d}'
+			elif base > 2:
+				fmt = '{:1o}'
+			else:
+				fmt = '{:1b}'
+		elif(arg == '-cnt'):
+			cnt = True
 		elif(arg == '-sep'):
 			try:
 				val = args.next()
@@ -92,8 +110,14 @@ if __name__ == '__main__':
 			print('What the hell is this? %s' % arg)
 			sys.exit()
 
+	bn = 'BASE%d' % base
+	if base in basename:
+		bn = basename[base]
+	print('Calculating PI in %s' % bn)
+
 	(cols, rows) = getTerminalSize()
-	cols -= 10
+	if cnt:
+		cols -= 10
 
 	digit = 0
 	my_array = []
@@ -102,7 +126,10 @@ if __name__ == '__main__':
 		digit += 1
 		if(digit % cols == 0):
 			out = "".join(my_array)
-			print("%s : %7d" % (out, digit))
+			if cnt:
+				print("%s : %7d" % (out, digit))
+			else:
+				print("%s" % (out))
 			my_array = []
 		if((sep > 0) and digit % (cols*sep) == 0):
 			print("-------------------- %7d digits" % digit)
