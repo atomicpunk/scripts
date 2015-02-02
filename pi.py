@@ -8,6 +8,35 @@ import fcntl
 import termios
 import struct
 
+class ColorWheel:
+	nc = '\033[0m'
+	dc = {
+		0: '\033[0;30m',
+		1: '\033[0;31m',
+		2: '\033[0;32m',
+		3: '\033[0;33m',
+		4: '\033[0;34m',
+		5: '\033[0;35m',
+		6: '\033[0;36m',
+		7: '\033[0;37m',
+		8: '\033[0;31m',
+		9: '\033[0;32m',
+		10: '\033[0;33m',
+		11: '\033[0;34m',
+		12: '\033[0;35m',
+		13: '\033[0;36m',
+		14: '\033[0;37m',
+		15: '\033[0;2m'
+	}
+	def char(self, i, c):
+		return '%s%s%s' % (self.dc[int(i)], c, self.nc)
+	def line(self, my_array, fmt):
+		out = ''
+		for i in my_array:
+			out += self.char(i, fmt.format(i))
+		return out
+colorwheel = ColorWheel()
+
 def getTerminalSize():
 	env = os.environ
 	def ioctl_GWINSZ(fd):
@@ -56,7 +85,8 @@ def printHelp():
 	print('  -base 2   Binary')
 	print('  -base N   2 <= N <= 16')
 	print('  -sep N    Include a separator every N lines with a count')
-	print('  -cnt      Include a digit count after every line\n')
+	print('  -cnt      Include a digit count after every line')
+	print('  -color    Print digits in color\n')
 
 if __name__ == '__main__':
 	basename = {
@@ -70,6 +100,7 @@ if __name__ == '__main__':
 	fmt = '{:1d}'
 	sep = 0
 	cnt = False
+	color = False
 	for arg in args:
 		if(arg == '-h'):
 			printHelp()
@@ -95,6 +126,8 @@ if __name__ == '__main__':
 				fmt = '{:1b}'
 		elif(arg == '-cnt'):
 			cnt = True
+		elif(arg == '-color'):
+			color = True
 		elif(arg == '-sep'):
 			try:
 				val = args.next()
@@ -122,10 +155,16 @@ if __name__ == '__main__':
 	digit = 0
 	my_array = []
 	for i in make_pi(base):
-		my_array.append(str(fmt.format(i)))
+		if color:
+			my_array.append(i)
+		else:
+			my_array.append(str(fmt.format(i)))
 		digit += 1
 		if(digit % cols == 0):
-			out = "".join(my_array)
+			if color:
+				out = colorwheel.line(my_array, fmt)
+			else:
+				out = "".join(my_array)
 			if cnt:
 				print("%s : %7d" % (out, digit))
 			else:
