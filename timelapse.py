@@ -2,7 +2,7 @@
 
 #
 #    TimeLapse Maker - processing the images for a timelapse
-#    Copyright (C) 2014 Todd Brandt <tebrandt@frontier.com>
+#    Copyright (C) 2015 Todd Brandt <tebrandt@frontier.com>
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
+#    required ubuntu packages:
+#    sudo apt-get install python-pyexiv2 python-opencv python-matplotlib
 
 import sys
 import os
@@ -25,12 +27,13 @@ import shutil
 import string
 import re
 import tempfile
-from datetime import datetime
-import pyexiv2
+from datetime import datetime, timedelta
 import cv2
-import numpy
-from matplotlib import pyplot as plt
+import urllib
+import json
+#import numpy
 
+sundatafile = '/home/tebrandt/.sundata'
 tagmap = {
 	'orientation': 'Exif.Image.Orientation',
 	'artist': 'Exif.Image.Artist',
@@ -40,10 +43,12 @@ tagmap = {
 tagdef = {
 	'orientation': '1',
 	'artist': 'Todd E Brandt',
-	'copyright': 'Todd E Brandt <tebrandt@frontier.com> 2014',
+	'copyright': 'Todd E Brandt <tebrandt@frontier.com> 2015',
 }
 
 def getTag(indir, tagname):
+	import pyexiv2
+
 	for filename in sorted(os.listdir(indir)):
 		file = os.path.join(indir, filename)
 		if not os.path.isfile(file):
@@ -61,6 +66,8 @@ def getTag(indir, tagname):
 		print("%s : %s = %s" % (filename, tagname, tag.value))
 
 def setTag(indir, tagname, tagval):
+	import pyexiv2
+
 	for filename in sorted(os.listdir(indir)):
 		file = os.path.join(indir, filename)
 		if not os.path.isfile(file):
@@ -92,6 +99,8 @@ class ImageInfo:
 	size = ''
 	valid = True
 	def __init__(self, file):
+		import pyexiv2
+
 		meta = pyexiv2.metadata.ImageMetadata(file)
 		self.size = ''
 		try:
@@ -231,6 +240,8 @@ def matchTemplate(img, template, meth):
 	return (top_left, (w, h))
 
 def showMatch(img, template, x, y, w, h, filename):
+	from matplotlib import pyplot as plt
+
 	imgcpy = img.copy()
 	cv2.rectangle(imgcpy, (x,y), (x + w, y + h), 255, 5)
 	plt.subplot(221),plt.imshow(imgcpy, cmap = 'gray')
@@ -308,6 +319,42 @@ def createVideo(indir, outfile, slow):
 	os.system(cmd)
 	shutil.rmtree(tempdir)
 
+def getSunriseSunset(output=False):
+	times = {
+		'sunset' : '', 'sunrise' : '',
+		'civil_twilight_begin' : '', 'civil_twilight_end' : '',
+		'nautical_twilight_begin' : '', 'nautical_twilight_end' : '',
+		'astronomical_twilight_begin' : '', 'astronomical_twilight_end' : ''
+	}
+	f = urllib.urlopen("http://api.sunrise-sunset.org/json?lat=45.518182&lng=-122.902098&date=today")
+	j = f.read()
+	f.close()
+	data = json.JSONDecoder().decode(j)
+	if 'status' not in data or data['status'] != 'OK' :
+		doError('couldnt get sunrise sunset times', False)
+		return
+	utc = int((datetime.now() - datetime.utcnow()).total_seconds())
+	for val in times:
+		s = datetime.today().strftime('%Y-%m-%d ') + data['results'][val]
+		s = datetime.strptime(s, '%Y-%m-%d %I:%M:%S %p') - timedelta(seconds=-utc)
+		times[val] = s.strftime('%I:%M:%S %p')
+
+	out = 'atb : %s\n' % times['astronomical_twilight_begin']
+	out += 'ntb : %s\n' % times['nautical_twilight_begin']
+	out += 'ctb : %s\n' % times['civil_twilight_begin']
+	out += 'snr : %s\n' % times['sunrise']
+	out += 'sns : %s\n' % times['sunset']
+	out += 'cte : %s\n' % times['civil_twilight_end']
+	out += 'nte : %s\n' % times['nautical_twilight_end']
+	out += 'ate : %s' % times['astronomical_twilight_end']
+
+	f = open(sundatafile, 'w')
+	f.write(out+'\n')
+	f.close()
+
+	if output:
+		print out
+
 # Function: printHelp
 # Description:
 #	 print out the help text
@@ -340,6 +387,7 @@ def printHelp():
 	print('   matches   : find the template in the images (-i,-temp)')
 	print('   align     : crop images to align with match (-i,-o,-temp)')
 	print('   video     : make a timelapse mp4 video')
+	print('   sunrise   : get the local sunrise/sunset times for portland')
 	print('')
 	return True
 
@@ -474,5 +522,8 @@ if __name__ == '__main__':
 		if not title:
 			title = 'output.mp4'
 		createVideo(indir, title, slow)
+	# retrieve the sunset/sunrise times
+	elif(cmd == 'sunrise'):
+		getSunriseSunset(True)
 	else:
 		doError('Invalid command: '+cmd, True)
