@@ -435,11 +435,13 @@ def snapShot(device, name):
 	outdir = '/home/tebrandt/Pictures/'+name
 	outfile = now.strftime('garden-%m%d%y-%H%M%S.jpg')
 	if isDay():
-		exp = '-s "Exposure, Auto=Aperture Priority Mode" '+\
+		exp = '-s "White Balance Temperature, Auto=True" '+\
+			  '-s "Exposure, Auto=Aperture Priority Mode" '+\
 			  '-s "Exposure (Absolute)=250" '+\
 			  '-s "Exposure, Auto Priority=True"'
 	else:
-		exp = '-s "Exposure, Auto=Manual Mode" '+\
+		exp = '-s "White Balance Temperature, Auto=False" '+\
+			  '-s "Exposure, Auto=Manual Mode" '+\
 			  '-s "Exposure (Absolute)=250" '+\
 			  '-s "Exposure, Auto Priority=False"'
 	cmd = 'fswebcam -d %s -r %s --no-banner %s -s "Focus, Auto=False" -s "Focus (absolute)=74" %s/%s' \
