@@ -320,6 +320,13 @@ def createVideo(indir, outfile, slow):
 	os.system(cmd)
 	shutil.rmtree(tempdir)
 
+def isDay(lvl=''):
+	if not lvl:
+		lvl = lightLevel()
+	if lvl in ['twilight (civil)', 'day']:
+		return True
+	return False
+
 def lightLevel():
 	times = ['atb', 'ntb', 'ctb', 'snr', 'sns', 'cte', 'nte', 'ate']
 	cv = {
@@ -578,6 +585,8 @@ if __name__ == '__main__':
 		getSunriseSunset(True)
 	# print the current light level
 	elif(cmd == 'light'):
-		print('Light Level is %s' % lightLevel())
+		lvl = lightLevel()
+		print('Light Level is %s' % lvl)
+		print('Daylight = %s' % isDay(lvl))
 	else:
 		doError('Invalid command: '+cmd, True)
