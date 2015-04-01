@@ -412,6 +412,42 @@ def getSunriseSunset(output=False):
 
 	return table
 
+# Brightness                128 (50%)       0 - 255
+# Contrast                  128 (50%)       0 - 255
+# Saturation                128 (50%)       0 - 255
+# White Balance Temperature, Auto True      True | False
+# Gain                      0 (0%)          0 - 255
+# Power Line Frequency      60 Hz           Disabled | 50 Hz | 60 Hz
+# White Balance Temperature 6500 (100%)     2000 - 6500
+# Sharpness                 128 (50%)       0 - 255
+# Backlight Compensation    0               0 - 1
+# Exposure, Auto            Aperture Priority Mode Manual Mode | Aperture Priority Mode
+# Exposure (Absolute)       250 (12%)       3 - 2047
+# Exposure, Auto Priority   True            True | False
+# Pan (Absolute)            0 (50%)         -36000 - 36000
+# Tilt (Absolute)           0 (50%)         -36000 - 36000
+# Focus (absolute)          75 (30%)        0 - 250
+# Focus, Auto               False           True | False
+# Zoom, Absolute            100 (0%)        100 - 500
+def snapShot(device, name):
+	now = datetime.now()
+	sz = '1920x1080'
+	outdir = '/home/tebrandt/Pictures/'+name
+	outfile = now.strftime('garden-%m%d%y-%H%M%S.jpg')
+	if isDay():
+		exp = '-s "Exposure, Auto=Aperture Priority Mode" '+\
+			  '-s "Exposure (Absolute)=250" '+\
+			  '-s "Exposure, Auto Priority=True"'
+	else:
+		exp = '-s "Exposure, Auto=Manual Mode" '+\
+			  '-s "Exposure (Absolute)=250" '+\
+			  '-s "Exposure, Auto Priority=False"'
+	cmd = 'fswebcam -d %s -r %s --no-banner %s -s "Focus, Auto=False" -s "Focus (absolute)=74" %s/%s' \
+			% (device, sz, exp, outdir, outfile)
+	print cmd
+	os.system(cmd)
+	shutil.copyfile(outdir+'/'+outfile, outdir+'/last.jpg')
+
 # Function: printHelp
 # Description:
 #	 print out the help text
@@ -446,6 +482,7 @@ def printHelp():
 	print('   video     : make a timelapse mp4 video')
 	print('   sunrise   : get the local sunrise/sunset times for portland')
 	print('   light     : get the current light level (night, day, twilight, etc)')
+	print('   snapshot  : get a snapshot from the attached webcam')
 	print('')
 	return True
 
@@ -588,5 +625,8 @@ if __name__ == '__main__':
 		lvl = lightLevel()
 		print('Light Level is %s' % lvl)
 		print('Daylight = %s' % isDay(lvl))
+	# retrieve the sunset/sunrise times
+	elif(cmd == 'snapshot'):
+		snapShot('/dev/video0', 'garden')
 	else:
 		doError('Invalid command: '+cmd, True)
