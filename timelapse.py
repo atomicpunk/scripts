@@ -28,6 +28,7 @@ import string
 import re
 import tempfile
 from datetime import datetime, timedelta
+import time
 import cv2
 import urllib
 import json
@@ -319,17 +320,64 @@ def createVideo(indir, outfile, slow):
 	os.system(cmd)
 	shutil.rmtree(tempdir)
 
+def lightLevel():
+	times = ['atb', 'ntb', 'ctb', 'snr', 'sns', 'cte', 'nte', 'ate']
+	cv = {
+		'atb' : 'night',
+		'ntb' : 'twilight (astro)',
+		'ctb' : 'twilight (nautical)',
+		'snr' : 'twilight (civil)',
+		'sns' : 'day',
+		'cte' : 'twlight (civil)',
+		'nte' : 'twilight (nautical)',
+		'ate' : 'twilight (astro)',
+		'def' : 'night',
+	}
+	table = getSunriseSunset(False)
+	now = datetime.now()
+	next = 'def'
+	for val in times:
+		if now < table[val]:
+			next = val
+			break
+	return cv[next]
+
 def getSunriseSunset(output=False):
+	table = {}
+	cv = {
+		'astronomical_twilight_begin': 'atb',
+		'nautical_twilight_begin': 'ntb',
+		'civil_twilight_begin': 'ctb',
+		'sunrise': 'snr',
+		'sunset': 'sns',
+		'civil_twilight_end': 'cte',
+		'nautical_twilight_end': 'nte',
+		'astronomical_twilight_end': 'ate'
+	}
+
+	# if the config file is more than 12 hours old, rewrite it
+	if(os.path.exists(sundatafile)):
+		mt = time.ctime(os.path.getmtime(sundatafile))
+		mt = datetime.now() - datetime.strptime(mt, '%a %b %d %H:%M:%S %Y')
+		if mt.seconds < 43200:
+			fp = open(sundatafile, 'r')
+			for line in fp:
+				if output:
+					print line[0:-1]
+				val = line[0:3]
+				s = datetime.today().strftime('%Y-%m-%d ') + line[7:-1]
+				table[val] = datetime.strptime(s, '%Y-%m-%d %I:%M:%S %p')
+			fp.close()
+			return table
 	times = {
 		'sunset' : '', 'sunrise' : '',
 		'civil_twilight_begin' : '', 'civil_twilight_end' : '',
 		'nautical_twilight_begin' : '', 'nautical_twilight_end' : '',
 		'astronomical_twilight_begin' : '', 'astronomical_twilight_end' : ''
 	}
-	f = urllib.urlopen("http://api.sunrise-sunset.org/json?lat=45.518182&lng=-122.902098&date=today")
-	j = f.read()
-	f.close()
-	data = json.JSONDecoder().decode(j)
+	fp = urllib.urlopen("http://api.sunrise-sunset.org/json?lat=45.518182&lng=-122.902098&date=today")
+	data = json.JSONDecoder().decode(fp.read())
+	fp.close()
 	if 'status' not in data or data['status'] != 'OK' :
 		doError('couldnt get sunrise sunset times', False)
 		return
@@ -337,23 +385,25 @@ def getSunriseSunset(output=False):
 	for val in times:
 		s = datetime.today().strftime('%Y-%m-%d ') + data['results'][val]
 		s = datetime.strptime(s, '%Y-%m-%d %I:%M:%S %p') - timedelta(seconds=-utc)
+		table[cv[val]] = s
 		times[val] = s.strftime('%I:%M:%S %p')
 
-	out = 'atb : %s\n' % times['astronomical_twilight_begin']
+	out =  'atb : %s\n' % times['astronomical_twilight_begin']
 	out += 'ntb : %s\n' % times['nautical_twilight_begin']
 	out += 'ctb : %s\n' % times['civil_twilight_begin']
 	out += 'snr : %s\n' % times['sunrise']
 	out += 'sns : %s\n' % times['sunset']
 	out += 'cte : %s\n' % times['civil_twilight_end']
 	out += 'nte : %s\n' % times['nautical_twilight_end']
-	out += 'ate : %s' % times['astronomical_twilight_end']
+	out +=   'ate : %s' % times['astronomical_twilight_end']
 
-	f = open(sundatafile, 'w')
-	f.write(out+'\n')
-	f.close()
-
+	fp = open(sundatafile, 'w')
+	fp.write(out+'\n')
+	fp.close()
 	if output:
 		print out
+
+	return table
 
 # Function: printHelp
 # Description:
@@ -388,6 +438,7 @@ def printHelp():
 	print('   align     : crop images to align with match (-i,-o,-temp)')
 	print('   video     : make a timelapse mp4 video')
 	print('   sunrise   : get the local sunrise/sunset times for portland')
+	print('   light     : get the current light level (night, day, twilight, etc)')
 	print('')
 	return True
 
@@ -525,5 +576,8 @@ if __name__ == '__main__':
 	# retrieve the sunset/sunrise times
 	elif(cmd == 'sunrise'):
 		getSunriseSunset(True)
+	# print the current light level
+	elif(cmd == 'light'):
+		print('Light Level is %s' % lightLevel())
 	else:
 		doError('Invalid command: '+cmd, True)
