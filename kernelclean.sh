@@ -7,7 +7,7 @@ listKernels() {
 	for k in $KERNELS; do
 		VERSION=`echo $k | sed "s/linux-image-//"`
 		echo "$VERSION"
-		PACKAGES=`dpkg -l | grep $VERSION | awk '{print $2}'`
+		PACKAGES=`dpkg -l | grep $VERSION | grep -v linux-libc-dev | awk '{print $2}'`
 		for p in $PACKAGES; do
 			echo "\t$p"
 		done
@@ -23,7 +23,7 @@ cleanKernels() {
 			continue
 		fi
 		echo "Removing packages for kernel $VERSION"
-		PACKAGES=`dpkg -l | grep $VERSION | awk '{print $2}'`
+		PACKAGES=`dpkg -l | grep $VERSION | grep -v linux-libc-dev | awk '{print $2}'`
 		for p in $PACKAGES; do
 			sudo dpkg --purge $p
 		done
