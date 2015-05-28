@@ -96,8 +96,8 @@ copyFrame() {
 	M=`echo $FILE | cut -c1-2`
 	D=`echo $FILE | cut -c3-4`
 	Y=`echo $FILE | cut -c5-6`
-	H=`echo $FILE | cut -c23-24`
-	I=`echo $FILE | cut -c25-26`
+	H=`echo $FILE | cut -c22-23`
+	I=`echo $FILE | cut -c24-25`
 	echo "$IDX: $FILE"
 	TIME=`date -d "$Y$M$D $H:$I" "+%b %d  %H:%M"`
 	convert -font Arial-Regular -pointsize 40 -fill white -draw "text 10,1070\"$TIME\"" $FILE $TMPDIR/image${IDX}.jpg

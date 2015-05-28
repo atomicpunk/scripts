@@ -233,7 +233,7 @@ def parseOther(file):
 	fp = open(file, 'r')
 	total = 0.0
 	print('')
-	print(' CASH & RETIREMENT')
+	print(' %s' % file)
 	print('-------------------------------------')
 	print('              SOURCE           VALUE')
 	print('-------------------------------------')
@@ -301,7 +301,8 @@ if __name__ == '__main__':
 
 	home = os.environ['HOME']+'/.finance/'
 	parseBonds(home+'bonds.txt')
-	parseOther(home+'other.txt')
+	parseOther(home+'cash.txt')
+	parseOther(home+'retirement.txt')
 	parseStockTransactions(home+'mystocktransactions.csv')
 	portfolio.getStockPrices()
 	portfolio.show()

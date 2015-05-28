@@ -141,7 +141,7 @@ checkTool() {
 
 # -- init --
 
-checkTool "mencoder"
+#checkTool "mencoder"
 checkTool "avconv"
 checkTool "avprobe"
 

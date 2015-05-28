@@ -89,7 +89,7 @@ printVersion() {
 
 testServer() {
     if [ "$SERVER" != "local" ]; then
-        CHECK=`ping -q -w 5 $SERVER | grep ", 0% packet loss,"`
+        CHECK=`ping -q -w 10 $SERVER | grep ", 0% packet loss,"`
         if [ -z "$CHECK" ]; then
             echo "Host $SERVER is unreachable"
             exit

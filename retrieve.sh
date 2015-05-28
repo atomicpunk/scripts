@@ -1,8 +1,8 @@
 #!/bin/sh
 
-ADDR="192.168.1.7"
+ADDR="192.168.1.9"
 #FOLDERS="closeup garden"
-FOLDERS="closeup"
+FOLDERS="garden"
 
 for folder in $FOLDERS; do
 	REMOTE=`ssh -X $ADDR "cd Pictures/$folder ; ls -1 $folder-??????-??????.jpg"`
