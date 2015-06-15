@@ -38,7 +38,7 @@ fakeGPS() {
 	-M"set Exif.GPSInfo.GPSLongitudeRef W" \
 	-M"set Exif.GPSInfo.GPSLongitude 114/1 14/1 32003/1000" \
 	-M"set Exif.GPSInfo.GPSAltitudeRef 0" \
-	-M"set Exif.GPSInfo.GPSAltitude 1000/1" \
+	-M"set Exif.GPSInfo.GPSAltitude 0/1" \
 	$1
 }
 
