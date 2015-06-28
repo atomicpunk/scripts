@@ -36,12 +36,7 @@ import fractions
 import geopy
 from geopy.distance import vincenty
 
-DISKID = '8765-4321'
-tagdef = {
-	'orientation': '1',
-	'artist': 'Todd E Brandt',
-	'copyright': 'Todd E Brandt <tebrandt@frontier.com> 2015',
-}
+DISKID = 'drone'
 
 def getTag(indir, tagname):
 	import pyexiv2
@@ -187,6 +182,7 @@ class ImageInfo:
 	locations = {
 		'toddshouse' : (45.518269,122.9021689),
 		'amberglen'  : (45.530296,122.884092),
+		'skylineblvd': (45.520772,122.741428),
 	}
 	valid = True
 	def __init__(self, file):
