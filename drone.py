@@ -180,9 +180,10 @@ class ImageInfo:
 	}
 	tagdata = {}
 	locations = {
-		'toddshouse' : (45.518269,122.9021689),
-		'amberglen'  : (45.530296,122.884092),
-		'skylineblvd': (45.520772,122.741428),
+		'toddshouse'	: (45.518269,122.9021689),
+		'amberglen'  	: (45.530296,122.884092),
+		'skylineblvd'	: (45.520772,122.741428),
+		'cpassNskyline'	: (45.605270,122.861583),
 	}
 	valid = True
 	def __init__(self, file):
@@ -249,7 +250,9 @@ class ImageInfo:
 	def filedir(self):
 		if not self.known():
 			return ''
-		alt = int(round(self.tagdata['altitude'])/5)*5
+		alt = int(round(self.tagdata['altitude']))
+		if(alt%10 == 9):
+			alt += 1
 		exp1 = self.tagdata['exposure'].numerator
 		exp2 = self.tagdata['exposure'].denominator
 		ratio = float(exp1)/float(exp2)
@@ -257,11 +260,21 @@ class ImageInfo:
 			exp = '%ds%d' % (exp1, exp2)
 		else:
 			exp = '%d' % (int(1/ratio))
-		name = '%s_%03dm_%s' % (self.tagdata['place'], alt, exp)
+		name = '%s_%03dm_iso%d_%s' % (self.tagdata['place'], alt, self.tagdata['ISO'], exp)
 		return name
 
 def getImageMetadata(indir, full=True):
 	jpgfiles = getFileList(indir, '^DJI_(?P<idx>[0-9]*)\.JPG', True)
+	for jpg in jpgfiles:
+		info = ImageInfo(jpg)
+		if(info.valid):
+			print('%s -> %s' % (jpg, info.filedir()))
+			if full:
+				info.show()
+
+def getImageMetadataAll(indir, full=True):
+	jpgfiles = getFileList(indir, '.*.JPG', True)
+	jpgfiles += getFileList(indir, '.*.jpg', True)
 	for jpg in jpgfiles:
 		info = ImageInfo(jpg)
 		if(info.valid):
@@ -302,7 +315,8 @@ def printHelp():
 	print('   -o <dirname>   Output file folder')
 	print('   -n             dryrun, dont commit changes')
 	print('Commands:')
-	print('   info      : print basic metadata for image files')
+	print('   info      : print basic metadata for drone image files')
+	print('   infoall   : print basic metadata for all jpg image files')
 	print('   sync      : copy all .MOV, .SRT, and .JPG files from card')
 	print('   organize  : distribute the images based on location, exposure, and altitude')
 	print('')
@@ -388,6 +402,10 @@ if __name__ == '__main__':
 		if not indir:
 			indir = '.'
 		getImageMetadata(indir, commit)
+	elif(cmd == 'infoall'):
+		if not indir:
+			indir = '.'
+		getImageMetadataAll(indir, commit)
 	elif(cmd == 'organize'):
 		if not indir:
 			indir = '/media/whore/Archimedes/'
