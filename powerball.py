@@ -35,6 +35,36 @@ import urllib2
 import cookielib
 from datetime import datetime
 
+def numTest():
+	html = urlopen('http://www.powerball.com/powerball/winnums-text.txt')
+	whiteball = {}
+	powerball = {}
+	total = 0.0
+	for line in html:
+		m = re.match('(?P<date>[0-9]*/[0-9]*/[0-9]*) *(?P<p1>[0-9]*) *(?P<p2>[0-9]*) *(?P<p3>[0-9]*) *(?P<p4>[0-9]*) *(?P<p5>[0-9]*) *(?P<pb>[0-9]*).*', line)
+		if(not m):
+			continue
+		total += 1
+		date = m.group('date')
+		wbnums = [int(m.group('p1')),int(m.group('p2')),int(m.group('p3')),int(m.group('p4')),int(m.group('p5'))]
+		for i in wbnums:
+			if i not in whiteball:
+				whiteball[i] = 1
+			else:
+				whiteball[i] += 1
+		pbnum = int(m.group('pb'))
+		if pbnum not in powerball:
+			powerball[i] = 1
+		else:
+			powerball[pbnum] += 1
+	print '----- White Ball Frequency -----'
+	for i in sorted(whiteball, key=whiteball.get, reverse=True):
+		print 'WB %02d = %2.2f%%' % (i, 100*float(whiteball[i])/total)
+	print '----- Power Ball Frequency -----'
+	for i in sorted(powerball, key=powerball.get, reverse=True):
+		print 'PB %02d = %2.2f%%' % (i, 100*float(powerball[i])/total)
+
+
 def getPowerballNumbers(wb, pb):
 	html = urlopen('http://www.powerball.com/powerball/winnums-text.txt')
 	total = 0
@@ -93,6 +123,7 @@ def printHelp():
 	print('Options:')
 	print('  [general]')
 	print('    -h          Print this help text')
+	print('    -numtest    Print out which numbers are likeliest')
 	print('')
 	return True
 
@@ -120,6 +151,9 @@ if __name__ == '__main__':
 		if(arg == '-h'):
 			printHelp()
 			sys.exit()
+		elif(arg == '-numtest'):
+			numTest()
+			sys.exit()
 		else:
 			try:
 				num = int(arg)
@@ -134,8 +168,8 @@ if __name__ == '__main__':
 		if i < 1 or i > 69:
 			doError('Invalid White Ball Number: %d [1 - 69]' % i, False)
 
-	if nums[5] < 1 or nums[5] > 29:
-		doError('Invalid Power Ball Number: %d [1 - 29]' % nums[5], False)
+	if nums[5] < 1 or nums[5] > 35:
+		doError('Invalid Power Ball Number: %d [1 - 35]' % nums[5], False)
 
 	for i in range(0, 5):
 		test = nums[0:i] + nums[i+1:5]
