@@ -36,7 +36,7 @@ import fractions
 import geopy
 from geopy.distance import vincenty
 
-DISKID = 'drone'
+DISKID = 'disk'
 
 def getTag(indir, tagname):
 	import pyexiv2
@@ -184,6 +184,9 @@ class ImageInfo:
 		'amberglen'  	: (45.530296,122.884092),
 		'skylineblvd'	: (45.520772,122.741428),
 		'cpassNskyline'	: (45.605270,122.861583),
+		'sylvanexit'  	: (45.507197,122.738544),
+		'greenbrier'    : (45.525739,122.838784),
+		'riversidepark' : (44.862894,123.177692),
 	}
 	valid = True
 	def __init__(self, file):
@@ -251,13 +254,16 @@ class ImageInfo:
 		if not self.known():
 			return ''
 		alt = int(round(self.tagdata['altitude']))
-		if(alt%10 == 9):
-			alt += 1
 		exp1 = self.tagdata['exposure'].numerator
 		exp2 = self.tagdata['exposure'].denominator
 		ratio = float(exp1)/float(exp2)
 		if ratio > 0.1:
-			exp = '%ds%d' % (exp1, exp2)
+			if exp1 < 100 and exp2 < 100:
+				exp = '%ds%d' % (exp1, exp2)
+			else:
+				exp1 = round(ratio*10)
+				exp2 = 10
+				exp = '%ds%d' % (exp1, exp2)
 		else:
 			exp = '%d' % (int(1/ratio))
 		name = '%s_%03dm_iso%d_%s' % (self.tagdata['place'], alt, self.tagdata['ISO'], exp)
