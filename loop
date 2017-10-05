@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ $# -lt 1 ]; then
+	echo "Loop a command with a 2 second delay"
+	echo "USAGE: loop <command>"
+	exit
+fi
+while [ 1 ]; do
+	echo $1
+	`$1`
+	sleep 2
+done
