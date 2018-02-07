@@ -28,8 +28,8 @@ import os
 import shutil
 import string
 import re
-from datetime import datetime
-import ystockquote
+from datetime import datetime, timedelta
+import yqd
 
 # scottrade or other transaction data file in CSV format
 target = ''
@@ -55,7 +55,9 @@ class Stock:
 			return
 		if verbose:
 			print("PRICE GET: %s" % (self.name))
-		ret = ystockquote.get_price(self.name)
+		day1 = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
+		day2 = datetime.today().strftime('%Y%m%d')
+		ret = yqd.load_yahoo_quote(self.name, day1, day2)[-2].split(',')[4]
 		self.price = float(ret)
 		if verbose:
 			print("PRICE RCV: %s $%.2f" % (self.name, self.price))
