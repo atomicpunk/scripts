@@ -72,6 +72,8 @@ class Portfolio:
 		if t.symbol not in self.stocklist:
 			self.stocklist[t.symbol] = Stock(t.symbol, t.date, t.price)
 		stock = self.stocklist[t.symbol]
+		if t.action == 'Split':
+			stock.iprice *= stock.quantity / (t.quantity + stock.quantity)
 		if t.action in ['Dividend Reinvest', 'Buy', 'Sell', 'Split']:
 			stock.quantity += t.quantity
 		if t.action in ['Buy', 'Sell']:
@@ -123,19 +125,19 @@ class Portfolio:
 			stock = self.stocklist[s]
 			if s == 'Cash' or stock.quantity == 0.0:
 				continue
-			v = stock.quantity*stock.price
-			p = (stock.quantity*stock.price)-stock.cost
+			v = stock.quantity * stock.price
+			p = v - stock.cost
 			ret = 100.0*((v/stock.cost)-1)
 			avgret = ret/stock.ownedfor
 			change = 100.0*((stock.price/stock.iprice)-1)
 			print("%5s  %10s %5s %8.3f %7s %10s %10s %10s %6.2f%% %6.2f%% %6.2f%%" % \
 				(s, stock.date.date(),
-				'%.2f yrs'%stock.ownedfor,
+				'%.2f yrs' % stock.ownedfor,
 				stock.quantity,
-				'$%.2f'%stock.price,
-				'$%.2f'%stock.cost,
-				'$%.2f'%(stock.quantity*stock.price),
-				'$%.2f'%((stock.quantity*stock.price)-stock.cost),
+				'$%.2f' % stock.price,
+				'$%.2f' % stock.cost,
+				'$%.2f' % v,
+				'$%.2f' % p,
 				ret,
 				avgret,
 				change,
