@@ -28,12 +28,12 @@ import os
 import shutil
 import string
 import re
+import argparse
 from datetime import datetime, timedelta
 import yqd
 
-# scottrade or other transaction data file in CSV format
-target = ''
 verbose = False
+ameritradeids = []
 
 class Stock:
 	name = ''
@@ -44,6 +44,7 @@ class Stock:
 	price = 0.0
 	quantity = 0.0
 	ownedfor = 0.0
+	transfer = False
 	def __init__(self, sym, d, ip):
 		self.name = sym
 		self.date = d
@@ -66,15 +67,23 @@ class Portfolio:
 	networth = 0.0
 	stocklist = dict()
 	def stockTransaction(self, t):
+		if not t.symbol:
+			return
 		if t.symbol not in self.stocklist:
 			self.stocklist[t.symbol] = Stock(t.symbol, t.date, t.price)
 		stock = self.stocklist[t.symbol]
-		if t.action in ['Dividend Reinvest', 'Buy', 'Sell']:
+		if t.action in ['Dividend Reinvest', 'Buy', 'Sell', 'Split']:
 			stock.quantity += t.quantity
 		if t.action in ['Buy', 'Sell']:
 			stock.value += t.amount
 		if t.action == 'Buy':
 			stock.cost -= t.amount
+		if t.action == 'Transfer':
+			if not stock.transfer:
+				stock.quantity = t.quantity
+			else:
+				stock.quantity += t.quantity
+			stock.transfer = True
 	def getStockPrices(self):
 		for s in self.stocklist:
 			stock = self.stocklist[s]
@@ -90,10 +99,10 @@ class Portfolio:
 		cost = value = 0.0
 		for s in self.stocklist:
 			stock = self.stocklist[s]
-			if s == 'Cash' or stock.quantity > 0.0:
+			if s == 'Cash' or stock.quantity > 0.0 or stock.cost == 0.0:
 				continue
 			print("%5s %8.3f %10s %10s %6.2f%%" % \
-				(s, stock.quantity, 
+				(s, stock.quantity,
 				'$%.2f'%stock.cost,
 				'$%.2f'%stock.value,
 				100.0*stock.value/stock.cost
@@ -144,76 +153,110 @@ portfolio = Portfolio()
 
 class Transaction:
 	first = True
-	fields = [
-		'Symbol', 'Quantity', 'Price', 'Action', 'TradeDate', 'SettledDate',
-		'Interest', 'Amount', 'Commission', 'Fees', 'CUSIP', 'Description',
-		'ActionId', 'TradeNumber', 'RecordType', 'TaxLotNumber'
-	]
+	constants = {
+		'scottrade': {
+			'fields': [
+				'Symbol', 'Quantity', 'Price', 'Action', 'TradeDate', 'SettledDate',
+				'Interest', 'Amount', 'Commission', 'Fees', 'ID', 'Description',
+				'ActionId', 'TradeNumber', 'RecordType', 'TaxLotNumber'
+			],
+		},
+		'ameritrade': {
+			'fields': [
+				'TradeDate', 'ID', 'Action', 'Quantity', 'Symbol', 'Price',
+				'Commission', 'Amount', 'NetCashBalance', 'Fees', 'ShortTermFee',
+				'RedemptionFee', 'SalesCharge'
+			]
+		}
+	}
 	data = []
 	symbol = ''
 	quantity = 0.0
 	price = 0.0
+	id = ''
 	action = ''
 	date = 0
 	amount = 0.0
 	comm = 0.0
 	fees = 0.0
-	def __init__(self, line, count):
+	def __init__(self, broker, line, count):
+		self.rawline = line.strip()
+		self.fields = self.constants[broker]['fields']
 		line = line.replace('\r\n', '')
 		self.data = line.split(',')
 		self.symbol = self.val('Symbol').replace('.', '')
-		self.quantity = float(self.val('Quantity'))
-		self.price = float(self.val('Price'))
+		self.quantity = self.val('Quantity', True)
+		self.price = self.val('Price', True)
 		self.action = self.val('Action')
+		self.id = self.val('ID')
 		ds = self.val('TradeDate')
 		m = re.match('(?P<m>[0-9]*)/(?P<d>[0-9]*)/(?P<y>[0-9]*)', ds)
 		if not m:
-			doError('Bad date format %s' % ds, False)
+			doError('Bad date format %s' % ds)
 		self.date = datetime(int(m.group('y')), int(m.group('m')),
 			int(m.group('d')), 0, 0, 0, 999999-count)
-		self.amount = float(self.val('Amount'))
-		self.fees = float(self.val('Fees'))
-		self.comm = float(self.val('Commission'))
-	def val(self, name):
+		self.amount = self.val('Amount', True)
+		if self.quantity and self.amount and not self.price:
+			self.price = abs(self.amount / self.quantity)
+		self.fees = self.val('Fees', True)
+		self.comm = self.val('Commission', True)
+		if 'ORDINARY DIVIDEND' in self.action and self.quantity > 0:
+			self.action = 'Dividend Reinvest'
+		elif 'STOCK SPLIT' in self.action and self.quantity > 0:
+			self.action = 'Split'
+		elif 'TRANSFER OF SECURITY' in self.action and self.quantity > 0:
+			self.action = 'Transfer'
+		elif 'Bought' in self.action and self.quantity > 0:
+			self.action = 'Buy'
+		elif 'Sold' in self.action and self.quantity > 0:
+			self.action = 'Sell'
+	def val(self, name, num=False):
+		res = 0 if num else ''
 		if name not in self.fields:
-			return ''
+			return res
 		i = self.fields.index(name)
-		return self.data[i]
+		if not num:
+			return self.data[i]
+		if self.data[i]:
+			return float(self.data[i])
+		return 0
 	def show(self):
+		if t.action not in ['Dividend Reinvest', 'Buy', 'Sell', 'Split', 'Transfer']:
+			return
 		if Transaction.first:
-			print('-----------------------------------------------------------------------')
-			print('    date   name             action      qty   price     amount    comm')
-			print('-----------------------------------------------------------------------')
+			print('----------------------------------------------------------------------------------------')
+			print('    date   name                   action                 qty   price     amount    comm')
+			print('----------------------------------------------------------------------------------------')
 			Transaction.first = False
-		print('%s  %5s %18s %8.3f %7s %10s %7s' % \
+		print('%s  %5s %35s %8.3f %7s %10s %7s' % \
 			(self.date.strftime('%m/%d/%y'), self.symbol, self.action, self.quantity,
 			'$%.2f' % (self.price),
 			'$%.2f' % (self.amount),
 			'$%.2f' % (self.comm)
 			))
 
-def parseStockTransactions(file):
-	global verbose, target
-	count = 0
-	list = dict()
+def parseStockTransactions(list, broker, file):
+	changeover = datetime(2018, 2, 2)
+	reverse = True if broker == 'ameritrade' else False
+	count = 100000 if reverse else 0
 	fp = open(file, 'r')
 	for line in fp:
-		if count == 0:
-			count = 1
+		if not line.strip() or 'DATE' in line or 'Symbol' in line or 'END OF FILE' in line:
 			continue
-		t = Transaction(line, count)
-		if target and t.symbol != target:
-			continue
-		count += 1
+		t = Transaction(broker, line, count)
+		if broker == 'ameritrade':
+			if t.date < changeover:
+				continue
+			if t.id in ameritradeids:
+				continue
+			ameritradeids.append(t.id)
+		elif broker == 'scottrade':
+			if t.date >= changeover:
+				continue
+		count += -1 if reverse else 1
 		list[t.date] = t
-	for d in sorted(list.keys()):
-		t = list[d]
-		if verbose:
-			t.show()
-		portfolio.stockTransaction(t)
 
 def parseBonds(file):
-	global verbose, target
 	fp = open(file, 'r')
 	value = 0.0
 	print('')
@@ -231,7 +274,6 @@ def parseBonds(file):
 	portfolio.networth += value
 
 def parseOther(file):
-	global verbose, target
 	fp = open(file, 'r')
 	total = 0.0
 	print('')
@@ -249,63 +291,44 @@ def parseOther(file):
 	print('TOTAL                %10s' % '$%.2f'%total)
 	portfolio.networth += total
 
-# Function: printHelp
-# Description:
-#	 print out the help text
-def printHelp():
-	print('')
-	print('Finance')
-	print('Usage: finance <options>')
-	print('')
-	print('Description:')
-	print('  Calculate stock performance')
-	print('Options:')
-	print('  [general]')
-	print('    -h          Print this help text')
-	print('    -v          Print verbose output')
-	print('    -s <symbol> Focus on one stock')
-	print('')
-	return True
-
-# Function: doError
-# Description:
-#    generic error function for catastrphic failures
-# Arguments:
-#    msg: the error message to print
-#    help: True if printHelp should be called after, False otherwise
-def doError(msg, help):
-	if(help == True):
-		printHelp()
+def doError(msg):
 	print('ERROR: %s\n') % msg
 	sys.exit()
 
 # ----------------- MAIN --------------------
 # exec start (skipped if script is loaded as library)
 if __name__ == '__main__':
-	cmd = ''
-	cmdarg = ''
-	# loop through the command line arguments
-	args = iter(sys.argv[1:])
-	for arg in args:
-		if(arg == '-h'):
-			printHelp()
-			sys.exit()
-		elif(arg == '-v'):
-			verbose = True
-		elif(arg == '-s'):
-			try:
-				val = args.next()
-			except:
-				doError('No stock symbol supplied', True)
-			target = val
-		else:
-			doError('Invalid argument: '+arg, True)
-
+	parser = argparse.ArgumentParser(description='Calculate stock performance')
+	parser.add_argument('-v', action='store_true',
+		help='verbose output')
+	parser.add_argument('-d', metavar='date',
+		help='date to calculate for')
+	args = parser.parse_args()
+	date = False
+	verbose = args.v
+	if args.d:
+		try:
+			date = datetime.strptime(args.d, '%m/%d/%Y')
+		except:
+			doError('Invalid date format: %s' % args.d)
 	home = os.environ['HOME']+'/.finance/'
 	parseBonds(home+'bonds.txt')
 	parseOther(home+'cash.txt')
 	parseOther(home+'retirement.txt')
-	parseStockTransactions(home+'mystocktransactions.csv')
+	list = dict()
+	parseStockTransactions(list, 'scottrade', home+'scottrade.csv')
+	for filename in os.listdir(home+'ameritrade'):
+		if not re.match('^.*.csv$', filename):
+			continue
+		file = home+'ameritrade/'+filename
+		parseStockTransactions(list, 'ameritrade', file)
+	for d in sorted(list.keys()):
+		t = list[d]
+		if date and t.date > date:
+			break
+		if verbose:
+			t.show()
+		portfolio.stockTransaction(t)
 	portfolio.getStockPrices()
 	portfolio.show()
 
