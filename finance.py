@@ -30,7 +30,7 @@ import string
 import re
 import argparse
 from datetime import datetime, timedelta
-import yqd
+import urllib2
 
 verbose = False
 ameritradeids = []
@@ -56,16 +56,14 @@ class Stock:
 			return
 		if verbose:
 			print("PRICE GET: %s" % (self.name))
-		day1 = (datetime.now() - timedelta(days=1)).strftime('%Y%m%d')
-		day2 = datetime.today().strftime('%Y%m%d')
-		ret = yqd.load_yahoo_quote(self.name, day1, day2)[-2].split(',')[4]
-		self.price = float(ret)
+		self.price = getCurrentStockPrice(self.name)
 		if verbose:
 			print("PRICE RCV: %s $%.2f" % (self.name, self.price))
 
 class Portfolio:
 	networth = 0.0
 	stocklist = dict()
+	buylist = dict()
 	def stockTransaction(self, t):
 		if not t.symbol:
 			return
@@ -80,6 +78,13 @@ class Portfolio:
 			stock.value += t.amount
 		if t.action == 'Buy':
 			stock.cost -= t.amount
+			if t.symbol not in self.buylist:
+				self.buylist[t.symbol] = []
+			self.buylist[t.symbol].append({
+				'date': t.date.date(),
+				'cost': t.quantity*t.price,
+				'price': t.price,
+			})
 		if t.action == 'Transfer':
 			if not stock.transfer:
 				stock.quantity = t.quantity
@@ -92,6 +97,17 @@ class Portfolio:
 			if s == 'Cash' or stock.quantity == 0.0:
 				continue
 			stock.getPrice()
+	def showPurchases(self):
+		print('')
+		print(' PURCHASES')
+		print('-------------------------------------')
+		print(' NAME        DATE        COST  PRICE')
+		print('-------------------------------------')
+		for name in sorted(self.buylist):
+			list = self.buylist[name]
+			for i in list:
+				print(' %5s %s %11.5f %6.2f' % \
+					(name, i['date'], i['cost'], i['price']))
 	def show(self):
 		print('')
 		print(' COMPLETED TRANSACTIONS')
@@ -121,7 +137,7 @@ class Portfolio:
 		print(' NAME       PDATE      AGE      QTY   PRICE       COST      VALUE     PROFIT  RETURN  AVGRET  CHANGE')
 		print div
 		profit = cost = value = 0.0
-		for s in self.stocklist:
+		for s in sorted(self.stocklist):
 			stock = self.stocklist[s]
 			if s == 'Cash' or stock.quantity == 0.0:
 				continue
@@ -237,6 +253,35 @@ class Transaction:
 			'$%.2f' % (self.comm)
 			))
 
+def find_in_html(html, start, end, firstonly=True):
+	n, out = 0, []
+	while n < len(html):
+		m = re.search(start, html[n:])
+		if not m:
+			break
+		i = m.end()
+		m = re.search(end, html[n+i:])
+		if not m:
+			break
+		j = m.start()
+		str = html[n+i:n+i+j]
+		if end == 'ms':
+			num = re.search(r'[-+]?\d*\.\d+|\d+', str)
+			str = num.group() if num else 'NaN'
+		if firstonly:
+			return str
+		out.append(str)
+		n += i+j
+	if firstonly:
+		return ''
+	return out
+
+def getCurrentStockPrice(symbol):
+	response = urllib2.urlopen('https://finance.yahoo.com/quote/'+symbol)
+	html = response.read()
+	ret = find_in_html(html, '"regularMarketPrice":{"raw":', ',')
+	return float(ret)
+
 def parseStockTransactions(list, broker, file):
 	changeover = datetime(2018, 2, 2)
 	reverse = True if broker == 'ameritrade' else False
@@ -331,6 +376,7 @@ if __name__ == '__main__':
 		if verbose:
 			t.show()
 		portfolio.stockTransaction(t)
+	portfolio.showPurchases()
 	portfolio.getStockPrices()
 	portfolio.show()
 
