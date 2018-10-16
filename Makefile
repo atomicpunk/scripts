@@ -15,6 +15,7 @@ install :
 	install kernelbuild.sh $(DESTDIR)$(PREFIX)/bin/
 	install kernelclean.sh $(DESTDIR)$(PREFIX)/bin/
 	install loop $(DESTDIR)$(PREFIX)/bin/
+	install multiterm.py $(DESTDIR)$(PREFIX)/bin/multiterm
 	install pi.py $(DESTDIR)$(PREFIX)/bin/pi
 	install privacy.sh $(DESTDIR)$(PREFIX)/bin/privacy
 
@@ -28,5 +29,6 @@ uninstall :
 	rm -f $(DESTDIR)$(PREFIX)/bin/kernelbuild.sh
 	rm -f $(DESTDIR)$(PREFIX)/bin/kernelclean.sh
 	rm -f $(DESTDIR)$(PREFIX)/bin/loop
+	rm -f $(DESTDIR)$(PREFIX)/bin/multiterm
 	rm -f $(DESTDIR)$(PREFIX)/bin/pi
 	rm -f $(DESTDIR)$(PREFIX)/bin/privacy
