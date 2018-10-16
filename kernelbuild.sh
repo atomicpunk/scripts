@@ -12,12 +12,13 @@ KVER=""
 BVER=""
 PKGS=""
 KREL=""
+PKG="deb-pkg"
 
 printUsage() {
     echo "USAGE: kernelbuild.sh command <args>"
     echo "COMMANDS:"
     echo "  build - build a new kernel and optionally install it"
-    echo "    args: name <machine> <reboot>"
+    echo "    args: name <rpm/deb> <machine> <reboot>"
     echo "  install - install packages from current build"
     echo "    args: machine <reboot>"
     echo "  info - print out what's currently built"
@@ -41,8 +42,7 @@ getCurrentPackages() {
     KVER=`cd $SRCPATH; make kernelversion 2>/dev/null`
     BVER=`cat $SRCPATH/.version 2>/dev/null`
     KREL=`cat $SRCPATH/include/config/kernel.release 2>/dev/null`
-    PKGS="linux-firmware-image-${KREL}_${KREL}-${BVER}_${ARCH}.deb \
-          linux-headers-${KREL}_${KREL}-${BVER}_${ARCH}.deb \
+    PKGS="linux-headers-${KREL}_${KREL}-${BVER}_${ARCH}.deb \
           linux-image-${KREL}_${KREL}-${BVER}_${ARCH}.deb \
           linux-libc-dev_${KREL}-${BVER}_${ARCH}.deb"
 }
@@ -51,8 +51,7 @@ getExpectedPackages() {
     getArch
     KVER=`cd $SRCPATH; make kernelversion 2>/dev/null`
     BVER=`cat $SRCPATH/.version 2>/dev/null`
-    PKGS="linux-firmware-image-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
-          linux-headers-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
+    PKGS="linux-headers-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
           linux-image-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
           linux-libc-dev_${KVER}-${NAME}-${BVER}_${ARCH}.deb"
 }
@@ -107,7 +106,11 @@ buildKernel() {
     echo "Bulding kernel ${KVER}-${NAME} for ${ARCH}"
     cd $SRCPATH
     make oldconfig
-    make -j `getconf _NPROCESSORS_ONLN` deb-pkg LOCALVERSION=-$NAME
+	if [ -z "$NAME" ]; then
+	    make -j `getconf _NPROCESSORS_ONLN` $PKG
+	else
+	    make -j `getconf _NPROCESSORS_ONLN` $PKG LOCALVERSION=-$NAME
+	fi
     getExpectedPackages
     cd $OUTPATH
     for file in $PKGS
@@ -169,19 +172,31 @@ else
         installKernel
         exit
     elif [ $1 = "build" ]; then
-        if [ $# -gt 4 -o $# -lt 2 ]; then
+        if [ $# -gt 5 -o $# -lt 1 ]; then
             printUsage
         fi
-        NAME=$2
+        if [ $# -ge 2 ]; then
+	        if [ $2 = "none" -o $2 = "NONE" ]; then
+				NAME=""
+			else
+		        NAME=$2
+			fi
+        fi
         if [ $# -ge 3 ]; then
-            if [ $# -eq 4 ]; then
-                checkReboot $4
+	        if [ $3 != "deb" -a $3 != "rpm" ]; then
+		        echo "\nUUNKNOW package type: $3 [use deb or rpm]\n"
+			fi
+	        PKG="$3-pkg"
+        fi
+        if [ $# -ge 4 ]; then
+            if [ $# -ge 5 ]; then
+                checkReboot $5
             fi
-            SERVER=$3
+            SERVER=$4
             testServer
         fi
         buildKernel
-        if [ $# -ge 3 ]; then
+        if [ $# -ge 4 ]; then
             installKernel
         fi
     else
