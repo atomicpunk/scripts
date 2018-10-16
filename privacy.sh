@@ -59,7 +59,11 @@ editMetaData() {
 }
 
 printHelp() {
-	echo -e "\nUSAGE: privacy.sh <image file list>\n"
+	echo -e "\nImage privacy enforcer"
+	echo -e "Usage: privacy <image file list>\n"
+	echo -e "Description:"
+	echo -e "  Remove personal data from image EXIF metadata"
+	echo -e "  Output for imgname.ext = imgname_private.ext\n"
 }
 
 onError() {

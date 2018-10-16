@@ -14,8 +14,9 @@ install :
 	install fif $(DESTDIR)$(PREFIX)/bin/
 	install kernelbuild.sh $(DESTDIR)$(PREFIX)/bin/
 	install kernelclean.sh $(DESTDIR)$(PREFIX)/bin/
-	install kernelinstall.sh $(DESTDIR)$(PREFIX)/bin/
 	install loop $(DESTDIR)$(PREFIX)/bin/
+	install pi.py $(DESTDIR)$(PREFIX)/bin/pi
+	install privacy.sh $(DESTDIR)$(PREFIX)/bin/privacy
 
 uninstall :
 	rm -f $(DESTDIR)$(PREFIX)/bin/fif
@@ -26,5 +27,6 @@ uninstall :
 	rm -f $(DESTDIR)$(PREFIX)/bin/fif
 	rm -f $(DESTDIR)$(PREFIX)/bin/kernelbuild.sh
 	rm -f $(DESTDIR)$(PREFIX)/bin/kernelclean.sh
-	rm -f $(DESTDIR)$(PREFIX)/bin/kernelinstall.sh
 	rm -f $(DESTDIR)$(PREFIX)/bin/loop
+	rm -f $(DESTDIR)$(PREFIX)/bin/pi
+	rm -f $(DESTDIR)$(PREFIX)/bin/privacy
