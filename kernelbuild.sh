@@ -42,18 +42,34 @@ getCurrentPackages() {
     KVER=`cd $SRCPATH; make kernelversion 2>/dev/null`
     BVER=`cat $SRCPATH/.version 2>/dev/null`
     KREL=`cat $SRCPATH/include/config/kernel.release 2>/dev/null`
-    PKGS="linux-headers-${KREL}_${KREL}-${BVER}_${ARCH}.deb \
-          linux-image-${KREL}_${KREL}-${BVER}_${ARCH}.deb \
-          linux-libc-dev_${KREL}-${BVER}_${ARCH}.deb"
+	if [ -z "$NAME" ]; then
+		PKGS="linux-headers-${KVER}_${KVER}-${BVER}_${ARCH}.deb \
+			linux-image-${KVER}_${KVER}-${BVER}_${ARCH}.deb \
+			linux-image-${KVER}-dbg_${KVER}-${BVER}_${ARCH}.deb \
+			linux-libc-dev_${KVER}-${BVER}_${ARCH}.deb"
+	else
+		PKGS="linux-headers-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
+			linux-image-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
+			linux-image-${KVER}-${NAME}-dbg_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
+			linux-libc-dev_${KVER}-${NAME}-${BVER}_${ARCH}.deb"
+	fi
 }
 
 getExpectedPackages() {
     getArch
     KVER=`cd $SRCPATH; make kernelversion 2>/dev/null`
     BVER=`cat $SRCPATH/.version 2>/dev/null`
-    PKGS="linux-headers-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
-          linux-image-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
-          linux-libc-dev_${KVER}-${NAME}-${BVER}_${ARCH}.deb"
+	if [ -z "$NAME" ]; then
+		PKGS="linux-headers-${KVER}_${KVER}-${BVER}_${ARCH}.deb \
+			linux-image-${KVER}_${KVER}-${BVER}_${ARCH}.deb \
+			linux-image-${KVER}-dbg_${KVER}-${BVER}_${ARCH}.deb \
+			linux-libc-dev_${KVER}-${BVER}_${ARCH}.deb"
+	else
+		PKGS="linux-headers-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
+			linux-image-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
+			linux-image-${KVER}-${NAME}-dbg_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
+			linux-libc-dev_${KVER}-${NAME}-${BVER}_${ARCH}.deb"
+	fi
 }
 
 checkReboot() {
