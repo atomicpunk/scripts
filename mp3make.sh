@@ -23,59 +23,49 @@
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-AUTHOR="Todd Brandt"
-YEAR="2013"
-COMMENT="tebrandt@frontier.com"
-GENRE="Trance"
-
 printHelp() {
-    echo ""
-    echo "ConvertAudio - converts a list of audio files to mp3s"
-    echo "USAGE: convertaudio.sh <file1> <file2> <file3> ..."
-    echo ""
-    exit
+	echo ""
+	echo "mp3make - converts a list of media files to mp3s"
+	echo "USAGE: mp3make <file1> <file2> <file3> ..."
+	echo ""
+	exit
 }
 
 onError() {
-    echo ""
-    echo "ERROR: $1"
-    printHelp
+	echo ""
+	echo "ERROR: $1"
+	printHelp
 }
 
 checkTool() {
-    CHECK=`which $1`
-    PKG=$1
-    if [ $1 = "avconv" -o $1 = "avprobe" ]; then
-        PKG="libav-tools"
-    fi
-    if [ -z "$CHECK" ]; then
-        onError "$1 is not installed\ntry 'sudo apt-get install $PKG'"
-    fi
+	CHECK=`which $1`
+	PKG=$1
+	if [ $1 = "avconv" -o $1 = "avprobe" ]; then
+		PKG="libav-tools"
+	fi
+	if [ -z "$CHECK" ]; then
+		onError "$1 is not installed\ntry 'sudo apt-get install $PKG'"
+	fi
 }
 
 convertFile() {
-    MP3NAME=`echo "$1" | sed "s/ //g;s/\..*/\.mp3/"`
-    if [ -e "$MP3NAME" ]; then
-        echo "Converting $1 to $MP3NAME (already done)"
-        return
-    fi
-    echo "Converting $1 to $MP3NAME"
-    sox "$1" "$MP3NAME"
-    if [ ! -e "$MP3NAME" ]; then onError "sox failed to create $MP3NAME"; fi
+	MP3NAME=`echo "$1" | sed "s/\(.*\)\..*/\1\.mp3/"`
+	echo "INPUT : $1"
+	echo "OUTPUT: $MP3NAME"
+	if [ -e "$MP3NAME" ]; then
+		echo "(already done)"
+		return
+	fi
+	avconv -i "$1" "$MP3NAME"
+	if [ ! -e "$MP3NAME" ]; then onError "avconv failed to create $MP3NAME"; fi
 }
 
-stampFile() {
-    mp3info -a "$AUTHOR" -y "$YEAR" -c "$COMMENT" -g "$GENRE" "$1"
-}
+if [ $# -lt 1 ]; then printHelp; fi
 
-if [ $# -lt 2 ]; then printHelp; fi
-
-checkTool "sox"
-checkTool "mp3info"
+checkTool "avconv"
 
 while [ "$1" ] ; do
-    if [ ! -e "$1" ]; then onError "$1 doesn't exist"; fi
-    convertFile "$1"
-    stampFile "$MP3NAME"
-    shift
+	if [ ! -e "$1" ]; then onError "$1 doesn't exist"; fi
+	convertFile "$1"
+	shift
 done
