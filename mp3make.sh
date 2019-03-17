@@ -25,8 +25,11 @@
 
 printHelp() {
 	echo ""
+	echo "mp3make - converts a youtube link/playlist to mp3s"
+	echo "USAGE: mp3make <youtubelink>"
+	echo "   or "
 	echo "mp3make - converts a list of media files to mp3s"
-	echo "USAGE: mp3make <file1> <file2> <file3> ..."
+	echo "USAGE: mp3make <filemask>"
 	echo ""
 	exit
 }
@@ -50,22 +53,42 @@ checkTool() {
 
 convertFile() {
 	MP3NAME=`echo "$1" | sed "s/\(.*\)\..*/\1\.mp3/"`
-	echo "INPUT : $1"
-	echo "OUTPUT: $MP3NAME"
+	echo "INPUT  : $1"
+	echo "OUTPUT : $MP3NAME"
 	if [ -e "$MP3NAME" ]; then
 		echo "(already done)"
 		return
 	fi
-	avconv -i "$1" "$MP3NAME"
+	avconv -loglevel panic -i "$1" "$MP3NAME"
 	if [ ! -e "$MP3NAME" ]; then onError "avconv failed to create $MP3NAME"; fi
+}
+
+youtubeDownload() {
+	BASE=`pwd`
+	TMP=`mktemp -d`
+	cd $TMP
+	youtube-dl "$1"
+	for i in *;
+	do
+		convertFile "$i"
+		mv "$TMP/$MP3NAME" "$BASE/"
+		echo "SUCCESS: $BASE/$MP3NAME"
+	done
+	cd "$BASE"
+	rm -r "$TMP"
 }
 
 if [ $# -lt 1 ]; then printHelp; fi
 
 checkTool "avconv"
 
-while [ "$1" ] ; do
-	if [ ! -e "$1" ]; then onError "$1 doesn't exist"; fi
-	convertFile "$1"
-	shift
-done
+if [ -e "$1" ]; then
+	while [ "$1" ] ; do
+		if [ ! -e "$1" ]; then onError "$1 doesn't exist"; fi
+		convertFile "$1"
+		shift
+	done
+else
+	checkTool "youtube-dl"
+	youtubeDownload "$1"
+fi
