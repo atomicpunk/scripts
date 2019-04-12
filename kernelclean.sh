@@ -3,6 +3,7 @@
 CURR=`cat /proc/cmdline | awk '{print $1}' | sed "s/.*vmlinuz/linux-image/"`
 
 listKernels() {
+	KERNELS=`dpkg -l | grep -e linux-image -e linux-headers | grep -v -e linux-image-generic -e extra | awk '{print $2}'`
 	KERNELS=`dpkg -l | grep linux-image | grep -v -e linux-image-generic -e extra | awk '{print $2}'`
 	for k in $KERNELS; do
 		VERSION=`echo $k | sed "s/linux-image-//"`

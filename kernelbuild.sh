@@ -39,7 +39,7 @@ getArch() {
 
 getCurrentPackages() {
     getArch
-    KVER=`cd $SRCPATH; make kernelversion 2>/dev/null`
+    KVER=`cd $SRCPATH; make kernelrelease 2>/dev/null`
     BVER=`cat $SRCPATH/.version 2>/dev/null`
     KREL=`cat $SRCPATH/include/config/kernel.release 2>/dev/null`
 	if [ -z "$NAME" ]; then
@@ -57,7 +57,7 @@ getCurrentPackages() {
 
 getExpectedPackages() {
     getArch
-    KVER=`cd $SRCPATH; make kernelversion 2>/dev/null`
+    KVER=`cd $SRCPATH; make kernelrelease 2>/dev/null`
     BVER=`cat $SRCPATH/.version 2>/dev/null`
 	if [ -z "$NAME" ]; then
 		PKGS="linux-headers-${KVER}_${KVER}-${BVER}_${ARCH}.deb \
