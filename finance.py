@@ -52,15 +52,17 @@ class Stock:
 		self.iprice = ip
 	def getPrice(self):
 		global verbose
-		if self.name == 'Cash':
-			return
 		if verbose:
 			print("PRICE GET: %s" % (self.name))
-		self.price = getCurrentStockPrice(self.name)
+		if self.name != 'Cash':
+			self.price = getCurrentStockPrice(self.name)
+		else:
+			self.price = 1.0
 		if verbose:
 			print("PRICE RCV: %s $%.2f" % (self.name, self.price))
 
 class Portfolio:
+	totalcash = 0.0
 	networth = 0.0
 	stocklist = dict()
 	buylist = dict()
@@ -70,20 +72,39 @@ class Portfolio:
 		if t.symbol not in self.stocklist:
 			self.stocklist[t.symbol] = Stock(t.symbol, t.date, t.price)
 		stock = self.stocklist[t.symbol]
+		if t.action == 'Deposit':
+			stock.quantity += t.amount
+			self.totalcash += t.amount
+			return
 		if t.action == 'Split':
 			stock.iprice *= stock.quantity / (t.quantity + stock.quantity)
-		if t.action in ['Dividend Reinvest', 'Buy', 'Sell', 'Split']:
+		if t.action in ['Dividend Reinvest', 'Split', 'Buy', 'Sell']:
+			if t.action == 'Sell' and t.quantity >= 0:
+				t.quantity *= -1
 			stock.quantity += t.quantity
-		if t.action in ['Buy', 'Sell']:
-			stock.value += t.amount
-		if t.action == 'Buy':
-			stock.cost -= t.amount
+			stock.quantity = 0 if stock.quantity < 0.0000001 else stock.quantity
+			act = 'Div' if t.action == 'Dividend Reinvest' else t.action
+			if t.action in ['Buy', 'Sell']:
+				if 'Cash' in self.stocklist:
+					self.stocklist['Cash'].quantity += t.amount
+				stock.value += t.amount
+				price = '%6.2f' % t.price
+				cost = '%12.5f' % (t.quantity*t.price)
+			else:
+				cost = price = ''
+			if t.action == 'Buy':
+				stock.cost -= t.amount
 			if t.symbol not in self.buylist:
 				self.buylist[t.symbol] = []
 			self.buylist[t.symbol].append({
+				'type': act,
 				'date': t.date.date(),
-				'cost': t.quantity*t.price,
-				'price': t.price,
+				'quantity': t.quantity,
+				'price': price,
+				'cost': cost,
+				'tq': stock.quantity,
+				'tv': stock.value,
+				'tc': stock.cost,
 			})
 		if t.action == 'Transfer':
 			if not stock.transfer:
@@ -94,20 +115,23 @@ class Portfolio:
 	def getStockPrices(self):
 		for s in self.stocklist:
 			stock = self.stocklist[s]
-			if s == 'Cash' or stock.quantity == 0.0:
+			if stock.quantity == 0.0:
 				continue
 			stock.getPrice()
-	def showPurchases(self):
+	def showPurchases(self, funds=[]):
 		print('')
 		print(' PURCHASES')
-		print('-------------------------------------')
-		print(' NAME        DATE        COST  PRICE')
-		print('-------------------------------------')
+		print('-------------------------------------------------------------------------')
+		print(' NAME        DATE  TYPE  QUANTITY  TotalQTY TotalCOST         COST  PRICE')
+		print('-------------------------------------------------------------------------')
 		for name in sorted(self.buylist):
+			if len(funds) > 0 and name not in funds:
+				continue
 			list = self.buylist[name]
 			for i in list:
-				print(' %5s %s %11.5f %6.2f' % \
-					(name, i['date'], i['cost'], i['price']))
+				print(' %-5s %s %5s %9.3f %9.3f %9.2f %12s %6s' % \
+					(name, i['date'], i['type'], i['quantity'], i['tq'],
+					i['tc'], i['cost'], i['price']))
 	def show(self):
 		print('')
 		print(' COMPLETED TRANSACTIONS')
@@ -139,14 +163,20 @@ class Portfolio:
 		profit = cost = value = 0.0
 		for s in sorted(self.stocklist):
 			stock = self.stocklist[s]
-			if s == 'Cash' or stock.quantity == 0.0:
+			if stock.quantity == 0.0:
 				continue
 			v = stock.quantity * stock.price
-			p = v - stock.cost
-			ret = 100.0*((v/stock.cost)-1)
+			if stock.cost > 0:
+				ret = 100.0*((v/stock.cost)-1)
+				p = v - stock.cost
+			else:
+				ret = p = 0
 			avgret = ret/stock.ownedfor
-			change = 100.0*((stock.price/stock.iprice)-1)
-			print("%5s  %10s %5s %8.3f %7s %10s %10s %10s %6.2f%% %6.2f%% %6.2f%%" % \
+			if stock.iprice > 0:
+				change = 100.0*((stock.price/stock.iprice)-1)
+			else:
+				change = 0
+			print("%5s  %10s %5s %9.3f %7s %10s %10s %10s %6.2f%% %6.2f%% %6.2f%%" % \
 				(s, stock.date.date(),
 				'%.2f yrs' % stock.ownedfor,
 				stock.quantity,
@@ -161,6 +191,9 @@ class Portfolio:
 			value += v
 			profit += p
 			cost += stock.cost
+		if self.totalcash > 0:
+			cost = self.totalcash
+			profit = value - cost
 		print div
 		print("TOTAL                                       %10s %10s %10s %6.2f%%" % \
 			('$%.2f'%cost, '$%.2f'%value, '$%.2f'%profit, 100.0*((value/cost)-1)))
@@ -218,7 +251,9 @@ class Transaction:
 			self.price = abs(self.amount / self.quantity)
 		self.fees = self.val('Fees', True)
 		self.comm = self.val('Commission', True)
-		if 'ORDINARY DIVIDEND' in self.action and self.quantity > 0:
+		if 'ORDINARY DIVIDEND' in self.action or \
+			'LONG TERM GAIN DISTRIBUTION' in self.action or \
+			'SHORT TERM CAPITAL GAINS' in self.action:
 			self.action = 'Dividend Reinvest'
 		elif 'STOCK SPLIT' in self.action and self.quantity > 0:
 			self.action = 'Split'
@@ -226,8 +261,15 @@ class Transaction:
 			self.action = 'Transfer'
 		elif 'Bought' in self.action and self.quantity > 0:
 			self.action = 'Buy'
+			# hack to represent a correction, reverses a previous buy
+			if self.amount > 0:
+				self.quantity *= -1
 		elif 'Sold' in self.action and self.quantity > 0:
 			self.action = 'Sell'
+		elif 'ELECTRONIC FUNDING RECEIPT' in self.action or \
+			'Cash Adjustment' in self.action:
+			self.symbol = 'Cash'
+			self.action = 'Deposit'
 	def val(self, name, num=False):
 		res = 0 if num else ''
 		if name not in self.fields:
@@ -239,7 +281,7 @@ class Transaction:
 			return float(self.data[i])
 		return 0
 	def show(self):
-		if t.action not in ['Dividend Reinvest', 'Buy', 'Sell', 'Split', 'Transfer']:
+		if self.action not in ['Dividend Reinvest', 'Buy', 'Sell', 'Split', 'Transfer', 'Deposit']:
 			return
 		if Transaction.first:
 			print('----------------------------------------------------------------------------------------')
@@ -287,21 +329,32 @@ def parseStockTransactions(list, broker, file):
 	reverse = True if broker == 'ameritrade' else False
 	count = 100000 if reverse else 0
 	fp = open(file, 'r')
+	divs, buys = [], []
 	for line in fp:
 		if not line.strip() or 'DATE' in line or 'Symbol' in line or 'END OF FILE' in line:
 			continue
 		t = Transaction(broker, line, count)
 		if broker == 'ameritrade':
-			if t.date < changeover:
-				continue
-			if t.id in ameritradeids:
+			if t.date < changeover or t.id in ameritradeids:
 				continue
 			ameritradeids.append(t.id)
+			if t.action == 'Dividend Reinvest':
+				divs.append(t)
+			elif t.action == 'Buy':
+				buys.append(t)
 		elif broker == 'scottrade':
 			if t.date >= changeover:
 				continue
 		count += -1 if reverse else 1
 		list[t.date] = t
+	if broker != 'ameritrade':
+		return
+	for div in divs:
+		for buy in buys:
+			if div.amount == -1 * buy.amount:
+				div.quantity = buy.quantity
+				div.price = buy.price
+				del list[buy.date]
 
 def parseBonds(file):
 	fp = open(file, 'r')
@@ -376,7 +429,7 @@ if __name__ == '__main__':
 		if verbose:
 			t.show()
 		portfolio.stockTransaction(t)
-	portfolio.showPurchases()
+#	portfolio.showPurchases()
 	portfolio.getStockPrices()
 	portfolio.show()
 
