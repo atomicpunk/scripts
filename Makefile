@@ -3,7 +3,7 @@ PREFIX		?= /usr
 DESTDIR		?=
 
 all:
-	@echo "Nothing to build"
+	@echo "Nothing to build, sorry"
 
 install :
 	install -d  $(DESTDIR)$(PREFIX)/bin
