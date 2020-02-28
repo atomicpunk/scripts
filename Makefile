@@ -19,6 +19,7 @@ install :
 	install pi.py $(DESTDIR)$(PREFIX)/bin/pi
 	install privacy.sh $(DESTDIR)$(PREFIX)/bin/privacy
 	install mp3make.sh $(DESTDIR)$(PREFIX)/bin/mp3make
+	install noproxy $(DESTDIR)$(PREFIX)/bin/noproxy
 
 uninstall :
 	rm -f $(DESTDIR)$(PREFIX)/bin/fif
@@ -34,3 +35,4 @@ uninstall :
 	rm -f $(DESTDIR)$(PREFIX)/bin/pi
 	rm -f $(DESTDIR)$(PREFIX)/bin/privacy
 	rm -f $(DESTDIR)$(PREFIX)/bin/mp3make
+	rm -f $(DESTDIR)$(PREFIX)/bin/noproxy
