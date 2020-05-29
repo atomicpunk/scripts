@@ -7,7 +7,7 @@ REBOOT="no"
 NAME=""
 
 # build info
-ARCH=""
+ARCH="amd64"
 KVER=""
 BVER=""
 PKGS=""
@@ -45,12 +45,10 @@ getCurrentPackages() {
 	if [ -z "$NAME" ]; then
 		PKGS="linux-headers-${KVER}_${KVER}-${BVER}_${ARCH}.deb \
 			linux-image-${KVER}_${KVER}-${BVER}_${ARCH}.deb \
-			linux-image-${KVER}-dbg_${KVER}-${BVER}_${ARCH}.deb \
 			linux-libc-dev_${KVER}-${BVER}_${ARCH}.deb"
 	else
 		PKGS="linux-headers-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
 			linux-image-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
-			linux-image-${KVER}-${NAME}-dbg_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
 			linux-libc-dev_${KVER}-${NAME}-${BVER}_${ARCH}.deb"
 	fi
 }
@@ -62,12 +60,10 @@ getExpectedPackages() {
 	if [ -z "$NAME" ]; then
 		PKGS="linux-headers-${KVER}_${KVER}-${BVER}_${ARCH}.deb \
 			linux-image-${KVER}_${KVER}-${BVER}_${ARCH}.deb \
-			linux-image-${KVER}-dbg_${KVER}-${BVER}_${ARCH}.deb \
 			linux-libc-dev_${KVER}-${BVER}_${ARCH}.deb"
 	else
 		PKGS="linux-headers-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
 			linux-image-${KVER}-${NAME}_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
-			linux-image-${KVER}-${NAME}-dbg_${KVER}-${NAME}-${BVER}_${ARCH}.deb \
 			linux-libc-dev_${KVER}-${NAME}-${BVER}_${ARCH}.deb"
 	fi
 }
