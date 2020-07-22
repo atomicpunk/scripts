@@ -43,7 +43,7 @@ def findInFiles(sstring, filemask, options, binary):
 	for line in res.split('\n'):
 		if binary:
 			if 'Binary file' in line:
-				print line
+				print(line)
 			continue
 		m = re.match('^(?P<f>[^:]*)(:)(?P<n>[^:]*)(:)(?P<l>.*)', line)
 		if not m:
