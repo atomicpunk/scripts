@@ -38,12 +38,12 @@ def isValid(filename):
 	return True
 
 def findInFiles(sstring, filemask, options, binary):
-	cmd = 'egrep '+options+' -srn --include "'+filemask+'" "'+sstring+'"'
+	cmd = 'egrep -R '+options+' -srn --include "'+filemask+'" "'+sstring+'"'
 	res = os.popen(cmd).read().strip()
 	for line in res.split('\n'):
 		if binary:
 			if 'Binary file' in line:
-				print line
+				print(line)
 			continue
 		m = re.match('^(?P<f>[^:]*)(:)(?P<n>[^:]*)(:)(?P<l>.*)', line)
 		if not m:
