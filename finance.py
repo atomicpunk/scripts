@@ -1,5 +1,4 @@
-#!/usr/bin/python
-
+#!/usr/bin/env python3
 #
 # Copyright 2012 Todd Brandt <tebrandt@frontier.com>
 #
@@ -30,10 +29,16 @@ import string
 import re
 import argparse
 from datetime import datetime, timedelta
-import urllib2
+import urllib3
+import requests
+import json
+import yfinance as yf
 
 verbose = False
 ameritradeids = []
+
+def ascii(text):
+	return text.decode('ascii', 'ignore')
 
 class Stock:
 	name = ''
@@ -50,12 +55,30 @@ class Stock:
 		self.date = d
 		self.ownedfor = float((datetime.now()-d).days) / 365.25
 		self.iprice = ip
+	def stockPriceWebScrape(self, symbol):
+		url = 'https://finance.yahoo.com/quote/'+symbol+'?p='+symbol+'VICEX'
+		http = urllib3.PoolManager()
+		response = http.request('GET', url)
+		html = ascii(response.data)
+		ret = find_in_html(html, '"regularMarketPrice":{"raw":', ',')
+		return float(ret)
+	def stockPriceYFinance(self, symbol):
+		dt = (datetime.now() - timedelta(days=4)).strftime('%Y-%m-%d')
+		t = yf.download(symbol, start=dt)
+		return float('%.2f' % t['Close'][-1])
+	def stockPriceAlphaAdvantage(self, symbol):
+		sym = 'symbol=%s' % symbol
+		apikey = 'apikey=XXXXXXXXXXX'
+		url = 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&'+sym+'&'+apikey
+		resp = requests.get(url)
+		data = json.loads(resp.content)
+		return float(data['Global Quote']['05. price'])
 	def getPrice(self):
 		global verbose
 		if verbose:
 			print("PRICE GET: %s" % (self.name))
 		if self.name != 'Cash':
-			self.price = getCurrentStockPrice(self.name)
+			self.price = self.stockPriceYFinance(self.name)
 		else:
 			self.price = 1.0
 		if verbose:
@@ -157,9 +180,9 @@ class Portfolio:
 		print('')
 		print(' CURRENT INVESTMENTS')
 		div = '-----------------------------------------------------------------------------------------------------'
-		print div
+		print(div)
 		print(' NAME       PDATE      AGE      QTY   PRICE       COST      VALUE     PROFIT  RETURN  AVGRET  CHANGE')
-		print div
+		print(div)
 		profit = cost = value = 0.0
 		for s in sorted(self.stocklist):
 			stock = self.stocklist[s]
@@ -194,7 +217,7 @@ class Portfolio:
 		if self.totalcash > 0:
 			cost = self.totalcash
 			profit = value - cost
-		print div
+		print(div)
 		print("TOTAL                                       %10s %10s %10s %6.2f%%" % \
 			('$%.2f'%cost, '$%.2f'%value, '$%.2f'%profit, 100.0*((value/cost)-1)))
 		print('')
@@ -317,12 +340,6 @@ def find_in_html(html, start, end, firstonly=True):
 	if firstonly:
 		return ''
 	return out
-
-def getCurrentStockPrice(symbol):
-	response = urllib2.urlopen('https://finance.yahoo.com/quote/'+symbol)
-	html = response.read()
-	ret = find_in_html(html, '"regularMarketPrice":{"raw":', ',')
-	return float(ret)
 
 def parseStockTransactions(list, broker, file):
 	changeover = datetime(2018, 2, 2)
