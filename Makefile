@@ -18,8 +18,10 @@ install :
 	install multiterm.py $(DESTDIR)$(PREFIX)/bin/multiterm
 	install pi.py $(DESTDIR)$(PREFIX)/bin/pi
 	install privacy.sh $(DESTDIR)$(PREFIX)/bin/privacy
+	install wgetmask.sh $(DESTDIR)$(PREFIX)/bin/wgetmask
 	install mp3make.sh $(DESTDIR)$(PREFIX)/bin/mp3make
 	install noproxy $(DESTDIR)$(PREFIX)/bin/noproxy
+	install tl.sh $(DESTDIR)$(PREFIX)/bin/timelapse
 
 uninstall :
 	rm -f $(DESTDIR)$(PREFIX)/bin/fif

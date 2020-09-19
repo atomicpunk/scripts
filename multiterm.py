@@ -43,9 +43,9 @@ def displayGeometry():
 				continue
 			w, h, x, y = m.groups()
 			if primary:
-				maxrow = 54.0
+				maxrow = 55.0
 			else:
-				maxrow = 56.0
+				maxrow = 57.0
 			out.append((210.0, maxrow, int(w), int(h), int(x), int(y)))
 			break
 	fp.close()
