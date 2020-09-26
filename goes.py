@@ -10,17 +10,15 @@ from subprocess import call, Popen, PIPE
 import argparse
 
 URL="https://cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw"
-FOLDER = '/home/tebrandt/workspace/satellite/GOES'
-DAYDIR = FOLDER+'/cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw/GEOCOLOR'
-NIGHTDIR = FOLDER+'/cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw/07'
+IMAGEDIR = '{0}/cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw/{1}'
 DIRS=["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
 	"13", "14", "15", "16", "AirMass", "DayCloudPhase", "GEOCOLOR",
 	"NightMicrophysics", "Sandwich"]
 
-def syncImages():
+def syncImages(folder):
 	for dir in DIRS:
 		cmd = 'cd %s; wget -nc -r --no-parent -A \'*1200x1200.jpg\' -e robots=off %s/%s/' % \
-			(FOLDER, URL, dir)
+			(folder, URL, dir)
 		call(cmd, shell=True)
 
 def readImages(dir):
@@ -31,30 +29,67 @@ def readImages(dir):
 			out[dt] = img
 	return out
 
-def sortImages(folder):
+def daynightImages(indir, tmpdir):
 	i, sunrise, sunset = 0, time(7, 30, 0, 0), time(18, 26, 0, 0)
-	dayhash = readImages(DAYDIR)
-	nighthash = readImages(NIGHTDIR)
+	daydir = IMAGEDIR.format(indir, 'GEOCOLOR')
+	dayhash = readImages(daydir)
+	nightdir = IMAGEDIR.format(indir, '07')
+	nighthash = readImages(nightdir)
 	for dt in sorted(dayhash):
 		t = dt.time()
-		if t >= sunrise and t < sunset:
-			img = op.join(DAYDIR, dayhash[dt])
+		if t >= sunrise and t < sunset or (dt not in nighthash):
+			img = op.join(daydir, dayhash[dt])
 			print('  DAY(%s) %s' % (t.strftime('%H:%M'), dayhash[dt]))
 		else:
-			img = op.join(NIGHTDIR, nighthash[dt])
+			img = op.join(nightdir, nighthash[dt])
 			print('NIGHT(%s) %s' % (t.strftime('%H:%M'), nighthash[dt]))
-		shutil.copy(img, '%s/image%05d.jpg' % (folder, i))
+		shutil.copy(img, '%s/image%05d.jpg' % (tmpdir, i))
+		i += 1
+
+def sortImages(indir, tmpdir, name):
+	i, dir = 0, IMAGEDIR.format(indir, name)
+	imgs = readImages(dir)
+	for dt in sorted(imgs):
+		img = op.join(dir, imgs[dt])
+		print('%s %s' % (dt.strftime('%d/%m/%y %H:%M'), imgs[dt]))
+		shutil.copy(img, '%s/image%05d.jpg' % (tmpdir, i))
 		i += 1
 
 if __name__ == '__main__':
 
-	parser = argparse.ArgumentParser()
-	parser.add_argument('video')
+	parser = argparse.ArgumentParser(description='GOES Satellite Imagery Utility')
+	parser.add_argument('-f', '-folder', metavar='folder', default='.',
+		help='local folder where GOES imagery is located (default is current dir)')
+	parser.add_argument('-s', '-sync', action='store_true',
+		help='synchronize the latest GOES imagery to folder')
+	parser.add_argument('-v', '-video', nargs=2, metavar=('imgtype', 'outfile'),
+		help='generate a timelapse video from one of the image types')
 	args = parser.parse_args()
+	if len(sys.argv) < 2:
+		parser.print_help()
+		sys.exit(1)
 
-	syncImages()
-	tmpdir = mkdtemp(prefix='daynight')
-	sortImages(tmpdir)
-	cmd = 'avconv -y -i %s/image%%05d.jpg -c:v libx264 -r 24 %s' % (tmpdir, args.video)
+	if not op.exists(args.f) or not op.isdir(args.f):
+		print('ERROR: %s is not a valid folder' % args.f)
+		sys.exit(1)
+
+	if args.s:
+		syncImages(args.f)
+
+	if not args.v:
+		sys.exit(0)
+
+	imgtype, outfile = args.v
+	if imgtype != 'daynight' and imgtype not in DIRS:
+		print('ERROR: %s is not a valid image type, use one of these:' % imgtype)
+		print(DIRS)
+		sys.exit(1)
+
+	tmpdir = mkdtemp(prefix=imgtype)
+	if imgtype == 'daynight':
+		daynightImages(args.f, tmpdir)
+	else:
+		sortImages(args.f, tmpdir, imgtype)
+	cmd = 'avconv -y -i %s/image%%05d.jpg -c:v libx264 -r 24 %s' % (tmpdir, outfile)
 	call(cmd, shell=True)
 	shutil.rmtree(tmpdir)

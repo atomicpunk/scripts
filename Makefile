@@ -22,6 +22,7 @@ install :
 	install mp3make.sh $(DESTDIR)$(PREFIX)/bin/mp3make
 	install noproxy $(DESTDIR)$(PREFIX)/bin/noproxy
 	install tl.sh $(DESTDIR)$(PREFIX)/bin/timelapse
+	install goes.py $(DESTDIR)$(PREFIX)/bin/goes
 
 uninstall :
 	rm -f $(DESTDIR)$(PREFIX)/bin/fif
