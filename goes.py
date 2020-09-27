@@ -8,12 +8,26 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from datetime import time, datetime, timedelta
 from subprocess import call, Popen, PIPE
 import argparse
+import ephem
 
 URL="https://cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw"
 IMAGEDIR = '{0}/cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw/{1}'
 DIRS=["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
 	"13", "14", "15", "16", "AirMass", "DayCloudPhase", "GEOCOLOR",
 	"NightMicrophysics", "Sandwich"]
+
+def sunRiseSet(date):
+	mypos = ephem.Observer()
+	mypos.lon = str(-122.902103)
+	mypos.lat = str(45.518265)
+	mypos.elev = 0
+	mypos.pressure = 0
+	mypos.horizon = '-0:34'
+	mypos.date = date+' 19:00:00'
+	fmt = '%Y/%m/%d %H:%M:%S'
+	sunrise = datetime.strptime(str(mypos.previous_rising(ephem.Sun())), fmt) + timedelta(minutes=45)
+	sunset = datetime.strptime(str(mypos.next_setting(ephem.Sun())), fmt) - timedelta(minutes=55)
+	return (sunrise, sunset)
 
 def syncImages(folder):
 	for dir in DIRS:
@@ -25,24 +39,26 @@ def readImages(dir):
 	out = dict()
 	for img in os.listdir(dir):
 		if len(img) > 30:
-			dt = datetime.strptime(img[:11], '%Y%j%H%M') - timedelta(hours=7)
+			dt = datetime.strptime(img[:11], '%Y%j%H%M')
 			out[dt] = img
 	return out
 
 def daynightImages(indir, tmpdir):
-	i, sunrise, sunset = 0, time(7, 30, 0, 0), time(18, 26, 0, 0)
 	daydir = IMAGEDIR.format(indir, 'GEOCOLOR')
 	dayhash = readImages(daydir)
 	nightdir = IMAGEDIR.format(indir, '07')
 	nighthash = readImages(nightdir)
+	i, sunrise, sunset = 0, 0, 0
+
 	for dt in sorted(dayhash):
-		t = dt.time()
-		if t >= sunrise and t < sunset or (dt not in nighthash):
+		if not sunrise or not sunset or dt > sunset:
+			sunrise, sunset = sunRiseSet(dt.strftime('%Y-%m-%d'))
+		if dt >= sunrise and dt < sunset or (dt not in nighthash):
 			img = op.join(daydir, dayhash[dt])
-			print('  DAY(%s) %s' % (t.strftime('%H:%M'), dayhash[dt]))
+			print('VIS(%s) %s' % (dt.strftime('%Y-%m-%d %H:%M'), dayhash[dt]))
 		else:
 			img = op.join(nightdir, nighthash[dt])
-			print('NIGHT(%s) %s' % (t.strftime('%H:%M'), nighthash[dt]))
+			print(' IR(%s) %s' % (dt.strftime('%Y-%m-%d %H:%M'), nighthash[dt]))
 		shutil.copy(img, '%s/image%05d.jpg' % (tmpdir, i))
 		i += 1
 
