@@ -12,9 +12,8 @@ import ephem
 
 URL="https://cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw"
 IMAGEDIR = '{0}/cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw/{1}'
-DIRS=["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
-	"13", "14", "15", "16", "AirMass", "DayCloudPhase", "GEOCOLOR",
-	"NightMicrophysics", "Sandwich"]
+DIRS=["GEOCOLOR", "07", "06", "01", "02", "03", "04", "05", "08", "09", "10", "11", "12",
+	"13", "14", "15", "16", "AirMass", "DayCloudPhase", "NightMicrophysics", "Sandwich"]
 
 def sunRiseSet(date):
 	mypos = ephem.Observer()
@@ -43,10 +42,10 @@ def readImages(dir):
 			out[dt] = img
 	return out
 
-def daynightImages(indir, tmpdir):
-	daydir = IMAGEDIR.format(indir, 'GEOCOLOR')
+def daynightImages(indir, tmpdir, daytype, nighttype):
+	daydir = IMAGEDIR.format(indir, daytype)
 	dayhash = readImages(daydir)
-	nightdir = IMAGEDIR.format(indir, '07')
+	nightdir = IMAGEDIR.format(indir, nighttype)
 	nighthash = readImages(nightdir)
 	i, sunrise, sunset = 0, 0, 0
 
@@ -55,10 +54,10 @@ def daynightImages(indir, tmpdir):
 			sunrise, sunset = sunRiseSet(dt.strftime('%Y-%m-%d'))
 		if dt >= sunrise and dt < sunset or (dt not in nighthash):
 			img = op.join(daydir, dayhash[dt])
-			print('VIS(%s) %s' % (dt.strftime('%Y-%m-%d %H:%M'), dayhash[dt]))
+			print('DAY(%s) %s' % (dt.strftime('%Y-%m-%d %H:%M'), dayhash[dt]))
 		else:
 			img = op.join(nightdir, nighthash[dt])
-			print(' IR(%s) %s' % (dt.strftime('%Y-%m-%d %H:%M'), nighthash[dt]))
+			print('NIT(%s) %s' % (dt.strftime('%Y-%m-%d %H:%M'), nighthash[dt]))
 		shutil.copy(img, '%s/image%05d.jpg' % (tmpdir, i))
 		i += 1
 
@@ -96,14 +95,16 @@ if __name__ == '__main__':
 		sys.exit(0)
 
 	imgtype, outfile = args.v
-	if imgtype != 'daynight' and imgtype not in DIRS:
+	if imgtype not in ['daynight', 'nightnight'] and imgtype not in DIRS:
 		print('ERROR: %s is not a valid image type, use one of these:' % imgtype)
 		print(DIRS)
 		sys.exit(1)
 
 	tmpdir = mkdtemp(prefix=imgtype)
 	if imgtype == 'daynight':
-		daynightImages(args.f, tmpdir)
+		daynightImages(args.f, tmpdir, 'GEOCOLOR', '07')
+	elif imgtype == 'nightnight':
+		daynightImages(args.f, tmpdir, '06', '07')
 	else:
 		sortImages(args.f, tmpdir, imgtype)
 	cmd = 'avconv -y -i %s/image%%05d.jpg -c:v libx264 -r 24 %s' % (tmpdir, outfile)
