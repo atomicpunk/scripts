@@ -12,8 +12,7 @@ import ephem
 
 URL="https://cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw"
 IMAGEDIR = '{0}/cdn.star.nesdis.noaa.gov/GOES17/ABI/SECTOR/pnw/{1}'
-DIRS=["GEOCOLOR", "07", "06", "01", "02", "03", "04", "05", "08", "09", "10", "11", "12",
-	"13", "14", "15", "16", "AirMass", "DayCloudPhase", "NightMicrophysics", "Sandwich"]
+DIRS=["GEOCOLOR", "07", "06"]
 
 def sunRiseSet(date):
 	mypos = ephem.Observer()
@@ -34,19 +33,32 @@ def syncImages(folder):
 			(folder, URL, dir)
 		call(cmd, shell=True)
 
-def readImages(dir):
+def getDate(datestr):
+	try:
+		t = datetime.strptime(datestr, '%Y%m%d')
+	except:
+		if datestr:
+			print('ERROR: date must be in format YYYYMMDD and valid, not this: %s' % datestr)
+			sys.exit(1)
+		t = False
+	return t
+
+def readImages(dir, startdate, enddate):
+	t0 = getDate(startdate)
+	tN = getDate(enddate)
 	out = dict()
 	for img in os.listdir(dir):
 		if len(img) > 30:
 			dt = datetime.strptime(img[:11], '%Y%j%H%M')
-			out[dt] = img
+			if (not t0 or t0 <= dt) and (not tN or tN > dt):
+				out[dt] = img
 	return out
 
-def daynightImages(indir, tmpdir, daytype, nighttype):
+def daynightImages(indir, tmpdir, startdate, enddate, daytype, nighttype):
 	daydir = IMAGEDIR.format(indir, daytype)
-	dayhash = readImages(daydir)
+	dayhash = readImages(daydir, startdate, enddate)
 	nightdir = IMAGEDIR.format(indir, nighttype)
-	nighthash = readImages(nightdir)
+	nighthash = readImages(nightdir, startdate, enddate)
 	i, sunrise, sunset = 0, 0, 0
 
 	for dt in sorted(dayhash):
@@ -61,9 +73,9 @@ def daynightImages(indir, tmpdir, daytype, nighttype):
 		shutil.copy(img, '%s/image%05d.jpg' % (tmpdir, i))
 		i += 1
 
-def sortImages(indir, tmpdir, name):
+def sortImages(indir, tmpdir, startdate, enddate, name):
 	i, dir = 0, IMAGEDIR.format(indir, name)
-	imgs = readImages(dir)
+	imgs = readImages(dir, startdate, enddate)
 	for dt in sorted(imgs):
 		img = op.join(dir, imgs[dt])
 		print('%s %s' % (dt.strftime('%d/%m/%y %H:%M'), imgs[dt]))
@@ -79,6 +91,10 @@ if __name__ == '__main__':
 		help='synchronize the latest GOES imagery to folder')
 	parser.add_argument('-v', '-video', nargs=2, metavar=('imgtype', 'outfile'),
 		help='generate a timelapse video from one of the image types')
+	parser.add_argument('-b', '-begin', metavar='startdate', default='',
+		help='starting date for the video in the form YYYYMMDD')
+	parser.add_argument('-e', '-end', metavar='enddate', default='',
+		help='ending date for the video in the form YYYYMMDD')
 	args = parser.parse_args()
 	if len(sys.argv) < 2:
 		parser.print_help()
@@ -102,11 +118,11 @@ if __name__ == '__main__':
 
 	tmpdir = mkdtemp(prefix=imgtype)
 	if imgtype == 'daynight':
-		daynightImages(args.f, tmpdir, 'GEOCOLOR', '07')
+		daynightImages(args.f, tmpdir, args.b, args.e, 'GEOCOLOR', '07')
 	elif imgtype == 'nightnight':
-		daynightImages(args.f, tmpdir, '06', '07')
+		daynightImages(args.f, tmpdir, args.b, args.e, '06', '07')
 	else:
-		sortImages(args.f, tmpdir, imgtype)
+		sortImages(args.f, tmpdir, args.b, args.e, imgtype)
 	cmd = 'avconv -y -i %s/image%%05d.jpg -c:v libx264 -r 24 %s' % (tmpdir, outfile)
 	call(cmd, shell=True)
 	shutil.rmtree(tmpdir)
