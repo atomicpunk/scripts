@@ -56,11 +56,11 @@ class Stock:
 		self.ownedfor = float((datetime.now()-d).days) / 365.25
 		self.iprice = ip
 	def stockPriceWebScrape(self, symbol):
-		url = 'https://finance.yahoo.com/quote/'+symbol+'?p='+symbol+'VICEX'
+		url = 'https://finance.yahoo.com/quote/'+symbol
 		http = urllib3.PoolManager()
 		response = http.request('GET', url)
 		html = ascii(response.data)
-		ret = find_in_html(html, '"regularMarketPrice":{"raw":', ',')
+		ret = find_in_html(html, '"USD","regularMarketPrice":{"raw":', ',')
 		return float(ret)
 	def stockPriceYFinance(self, symbol):
 		dt = (datetime.now() - timedelta(days=4)).strftime('%Y-%m-%d')
@@ -81,8 +81,7 @@ class Stock:
 			self.price = self.stockPriceYFinance(self.name)
 		else:
 			self.price = 1.0
-		if verbose:
-			print("PRICE RCV: %s $%.2f" % (self.name, self.price))
+		print("PRICE: %s $%.2f" % (self.name, self.price))
 
 class Portfolio:
 	totalcash = 0.0
@@ -98,6 +97,16 @@ class Portfolio:
 		if t.action == 'Deposit':
 			stock.quantity += t.amount
 			self.totalcash += t.amount
+			return
+		if 'SHARE CLASS CONVERSION' in t.action:
+			del self.stocklist[t.symbol]
+			m = re.match('SHARE CLASS CONVERSION \((?P<n>[A-Z]*)\)', t.action)
+			if not m:
+				return
+			t.symbol = m.group('n')
+			stock.name = m.group('n')
+			stock.quantity = t.quantity
+			self.stocklist[t.symbol] = stock
 			return
 		if t.action == 'Split':
 			stock.iprice *= stock.quantity / (t.quantity + stock.quantity)
@@ -346,10 +355,19 @@ def parseStockTransactions(list, broker, file):
 	reverse = True if broker == 'ameritrade' else False
 	count = 100000 if reverse else 0
 	fp = open(file, 'r')
-	divs, buys = [], []
+	mlast, divs, buys = False, [], []
 	for line in fp:
 		if not line.strip() or 'DATE' in line or 'Symbol' in line or 'END OF FILE' in line:
 			continue
+		m = re.match('^(?P<s>.*)SHARE CLASS CONVERSION \((?P<n>[A-Z]*)\),(?P<q>[0-9\.]*)(?P<e>.*)$', line)
+		if m:
+			if not mlast:
+				mlast = m
+				continue
+			line = '%sSHARE CLASS CONVERSION (%s),%s%s' % \
+				(m.group('s'), mlast.group('n'), mlast.group('q'), m.group('e'))
+			mlast = False
+			print(line)
 		t = Transaction(broker, line, count)
 		if broker == 'ameritrade':
 			if t.date < changeover or t.id in ameritradeids:
