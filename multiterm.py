@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 #
 # Copyright 2018 Todd Brandt <tebrandt@frontier.com>
@@ -30,10 +30,14 @@ import string
 import re
 from subprocess import call, Popen, PIPE
 
+def ascii(text):
+    return text.decode('ascii', 'ignore')
+
 def displayGeometry():
 	out = []
 	fp = Popen(['xrandr', '-q'], stdout=PIPE).stdout
 	for line in fp:
+		line = ascii(line)
 		if ' connected' not in line:
 			continue
 		primary = True if ' primary' in line else False
