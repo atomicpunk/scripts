@@ -389,7 +389,6 @@ def parseStockTransactions(list, broker, file):
 			mlast = False
 		if broker == 'schwab':
 			line = line.replace('"', '').replace('$', '').replace('\n', '')
-			print(line)
 		t = Transaction(broker, line, count)
 		if broker == 'ameritrade':
 			if t.date < changeover or t.id in ameritradeids:
