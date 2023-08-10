@@ -190,7 +190,7 @@ class Portfolio:
 		print(' CURRENT INVESTMENTS')
 		div = '-----------------------------------------------------------------------------------------------------'
 		print(div)
-		print(' NAME       PDATE      AGE      QTY   PRICE       COST      VALUE     PROFIT  RETURN  AVGRET  CHANGE')
+		print(' NAME       PDATE       AGE       QTY   PRICE       COST      VALUE     PROFIT  RETURN  AVGRET  CHANGE')
 		print(div)
 		profit = cost = value = 0.0
 		for s in sorted(self.stocklist):
@@ -208,7 +208,7 @@ class Portfolio:
 				change = 100.0*((stock.price/stock.iprice)-1)
 			else:
 				change = 0
-			print("%5s  %10s %5s %9.3f %7s %10s %10s %10s %6.2f%% %6.2f%% %6.2f%%" % \
+			print("%5s  %10s %9s %9.3f %7s %10s %10s %10s %6.2f%% %6.2f%% %6.2f%%" % \
 				(s, stock.date.date(),
 				'%.2f yrs' % stock.ownedfor,
 				stock.quantity,
@@ -250,6 +250,12 @@ class Transaction:
 				'Commission', 'Amount', 'NetCashBalance', 'Fees', 'ShortTermFee',
 				'RedemptionFee', 'SalesCharge'
 			]
+		},
+		'schwab': {
+			'fields': [
+				'TradeDate', 'Action', 'Symbol', 'Desc', 'Quantity', 'Price',
+				'Commission', 'Amount'
+			]
 		}
 	}
 	data = []
@@ -268,6 +274,10 @@ class Transaction:
 		line = line.replace('\r\n', '')
 		self.data = line.split(',')
 		self.symbol = self.val('Symbol').replace('.', '')
+		if broker == 'schwab' and not self.symbol:
+			m = re.match('.*\((?P<n>[A-Z]*)\)', self.val('Desc'))
+			if m:
+				self.symbol = m.group('n')
 		self.quantity = self.val('Quantity', True)
 		self.price = self.val('Price', True)
 		self.action = self.val('Action')
@@ -285,13 +295,17 @@ class Transaction:
 		self.comm = self.val('Commission', True)
 		if 'ORDINARY DIVIDEND' in self.action or \
 			'LONG TERM GAIN DISTRIBUTION' in self.action or \
-			'SHORT TERM CAPITAL GAINS' in self.action:
+			'SHORT TERM CAPITAL GAINS' in self.action or \
+			'Cash Dividend' in self.action or \
+			'Long Term Cap Gain' in self.action or \
+			'Reinvest Dividend' in self.action:
 			self.action = 'Dividend Reinvest'
 		elif 'STOCK SPLIT' in self.action and self.quantity > 0:
 			self.action = 'Split'
 		elif 'TRANSFER OF SECURITY' in self.action and self.quantity > 0:
 			self.action = 'Transfer'
-		elif 'Bought' in self.action and self.quantity > 0:
+		elif ('Bought' in self.action or 'Reinvest Shares' in self.action) \
+			and self.quantity > 0:
 			self.action = 'Buy'
 			# hack to represent a correction, reverses a previous buy
 			if self.amount > 0:
@@ -356,8 +370,14 @@ def parseStockTransactions(list, broker, file):
 	count = 100000 if reverse else 0
 	fp = open(file, 'r')
 	mlast, divs, buys = False, [], []
+	if broker == 'ameritrade':
+		# hack to get the cash balance in sync with schwab
+		line = '01/01/2023,442250105463,CLIENT REQUESTED ELECTRONIC FUNDING RECEIPT (FUNDS NOW),,,,,0.32,,,,'
+		t = Transaction(broker, line, 100001)
+		list[t.date] = t
 	for line in fp:
-		if not line.strip() or 'DATE' in line or 'Symbol' in line or 'END OF FILE' in line:
+		if not line.strip() or 'DATE' in line or 'Symbol' in line or \
+			'END OF FILE' in line or 'Transactions' in line or 'Date' in line:
 			continue
 		m = re.match('^(?P<s>.*)SHARE CLASS CONVERSION \((?P<n>[A-Z]*)\),(?P<q>[0-9\.]*)(?P<e>.*)$', line)
 		if m:
@@ -367,6 +387,8 @@ def parseStockTransactions(list, broker, file):
 			line = '%sSHARE CLASS CONVERSION (%s),%s%s' % \
 				(m.group('s'), mlast.group('n'), mlast.group('q'), m.group('e'))
 			mlast = False
+		if broker == 'schwab':
+			line = line.replace('"', '').replace('$', '').replace('\n', '')
 			print(line)
 		t = Transaction(broker, line, count)
 		if broker == 'ameritrade':
@@ -377,16 +399,21 @@ def parseStockTransactions(list, broker, file):
 				divs.append(t)
 			elif t.action == 'Buy':
 				buys.append(t)
+		elif broker == 'schwab':
+			if t.action == 'Dividend Reinvest':
+				divs.append(t)
+			elif t.action == 'Buy':
+				buys.append(t)
 		elif broker == 'scottrade':
 			if t.date >= changeover:
 				continue
 		count += -1 if reverse else 1
 		list[t.date] = t
-	if broker != 'ameritrade':
+	if broker != 'ameritrade' and broker != 'schwab':
 		return
 	for div in divs:
 		for buy in buys:
-			if div.amount == -1 * buy.amount:
+			if div.symbol == buy.symbol and div.amount == -1 * buy.amount:
 				div.quantity = buy.quantity
 				div.price = buy.price
 				del list[buy.date]
@@ -457,6 +484,11 @@ if __name__ == '__main__':
 			continue
 		file = home+'ameritrade/'+filename
 		parseStockTransactions(list, 'ameritrade', file)
+	for filename in os.listdir(home+'schwab'):
+		if not re.match('^.*.csv$', filename):
+			continue
+		file = home+'schwab/'+filename
+		parseStockTransactions(list, 'schwab', file)
 	for d in sorted(list.keys()):
 		t = list[d]
 		if date and t.date > date:
