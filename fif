@@ -38,7 +38,7 @@ def isValid(filename):
 	return True
 
 def findInFiles(sstring, filemask, options, binary):
-	cmd = 'egrep -R '+options+' -srn --include "'+filemask+'" "'+sstring+'"'
+	cmd = 'egrep -R '+options+' -srn --include "'+filemask+'" --exclude-dir=".git" "'+sstring+'"'
 	res = os.popen(cmd).read().strip()
 	for line in res.split('\n'):
 		if binary:
